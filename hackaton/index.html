@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ru" itemscope itemtype="http://schema.org/WebPage">
+
+	<head prefix="og: http://ogp.me/ns#">
+
+		<title>ЭкоМониторинг — визуальная новелла</title>
+
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no, maximum-scale=1">
+		<meta http-equiv="Content-Security-Policy" content="default-src 'self' https:; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; media-src 'self' data: blob:; script-src 'self' 'unsafe-eval' blob:; script-src-elem blob: 'self' 'unsafe-eval'">
+		<meta name="description" content="Образовательная визуальная новелла о технологиях экологического мониторинга: трекер задач, инструктажи и мини-игры.">
+
+		<meta name="mobile-web-app-capable" content="yes">
+		<meta name="apple-mobile-web-app-capable" content="yes">
+		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+		<meta name="theme-color" content="#0e1b16">
+
+		<link rel="manifest" href="manifest.json">
+
+		<!-- Monogatari CSS -->
+		<link rel="stylesheet" href="./engine/core/monogatari.css">
+		<!-- Игра -->
+		<link rel="stylesheet" href="./style/main.css">
+		<link rel="stylesheet" href="./style/ui.css">
+		<link rel="stylesheet" href="./style/minigames.css">
+
+		<!-- Движок новеллы -->
+		<script src="./engine/core/monogatari.js"></script>
+
+		<!-- Ядро игры (загружается до сценария) -->
+		<script src="./js/core/data-loader.js"></script>
+		<script src="./js/core/progress.js"></script>
+		<script src="./js/core/hud.js"></script>
+		<script src="./js/core/overlay.js"></script>
+		<script src="./js/core/tracker-ui.js"></script>
+		<script src="./js/core/minigame-host.js"></script>
+
+		<!-- Мини-игры (регистрируются в MinigameHost) -->
+		<script src="./js/minigames/drone.js"></script>
+		<script src="./js/minigames/image-analysis.js"></script>
+		<script src="./js/minigames/decision-case.js"></script>
+		<script src="./js/minigames/match3-adapter.js"></script>
+
+		<!-- Пользовательские действия сценария -->
+		<script src="./js/actions/tracker.js"></script>
+		<script src="./js/actions/minigame.js"></script>
+		<script src="./js/actions/quiz.js"></script>
+		<script src="./js/actions/progress-actions.js"></script>
+
+		<!-- Настройки, хранилище, сценарий, точка входа -->
+		<script src="./js/options.js"></script>
+		<script src="./js/storage.js"></script>
+		<script src="./js/script.js"></script>
+		<script src="./js/main.js"></script>
+	</head>
+
+	<body>
+
+		<noscript>
+			<div class="middle text--center">
+				<h2>JavaScript отключён или не поддерживается.</h2>
+				<small>Чтобы играть, включите JavaScript или откройте игру в другом браузере.</small>
+			</div>
+		</noscript>
+
+		<div id="monogatari">
+			<visual-novel>
+				<language-selection-screen></language-selection-screen>
+				<loading-screen></loading-screen>
+				<main-screen>
+					<div class="title-card">
+						<p class="title-card__kicker"><span class="status-dot"></span> ЭКОМОНИТОРИНГ / ИНТЕРАКТИВНАЯ НОВЕЛЛА</p>
+						<h1 class="title-card__title">Большие перемены.<br><span>Твой первый шаг.</span></h1>
+						<p class="title-card__subtitle">Твоя стажировка начинается здесь. Исследуй мир с помощью технологий, принимай решения и помогай природе.</p>
+					</div>
+					<main-menu></main-menu><div class="menu-art" aria-hidden="true"></div><div class="menu-caption" aria-hidden="true"><span>01 / НАЧАЛО ИСТОРИИ</span><strong>Каждое решение имеет значение.</strong></div>
+				</main-screen>
+				<game-screen>
+					<dialog-log></dialog-log>
+					<text-box></text-box>
+					<quick-menu></quick-menu>
+				</game-screen>
+				<gallery-screen></gallery-screen>
+				<credits-screen></credits-screen>
+				<load-screen></load-screen>
+				<save-screen></save-screen>
+				<settings-screen></settings-screen>
+				<help-screen></help-screen>
+			</visual-novel>
+		</div>
+
+		<!-- Слой игровых оверлеев: трекер, мини-игры, HUD, карточки фактов.
+		     Живёт вне #monogatari, чтобы движок не перерисовывал его. -->
+		<div id="game-layer" aria-live="polite"></div>
+	</body>
+
+</html>

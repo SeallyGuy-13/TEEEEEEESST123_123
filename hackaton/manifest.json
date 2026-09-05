@@ -1,0 +1,12 @@
+{
+	"name": "ЭкоМониторинг: Стажёр",
+	"short_name": "ЭкоМониторинг",
+	"description": "Образовательная визуальная новелла о технологиях экологического мониторинга",
+	"start_url": "./index.html",
+	"display": "standalone",
+	"orientation": "any",
+	"background_color": "#0e1b16",
+	"theme_color": "#0e1b16",
+	"lang": "ru",
+	"icons": []
+}

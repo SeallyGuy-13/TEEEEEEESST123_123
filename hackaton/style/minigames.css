@@ -1,0 +1,915 @@
+/**
+ * Общие стили мини-игр + специфика каждой.
+ * Мини-игра всегда живёт внутри .overlay__panel, поэтому ширину не задаёт.
+ */
+
+.minigame { width: 100%; }
+
+.mg {
+	display: flex;
+	flex-direction: column;
+	gap: 0.85rem;
+	padding: clamp(0.85rem, 2.5vw, 1.4rem);
+}
+
+.mg__header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 0.75rem;
+}
+
+.mg__title {
+	margin: 0;
+	font-size: clamp(1.05rem, 3vw, 1.3rem);
+}
+
+.mg__goal {
+	margin: 0.25rem 0 0;
+	color: var(--muted);
+	font-size: 0.88rem;
+	line-height: 1.4;
+}
+
+.mg__fact {
+	flex: 0 0 auto;
+	width: 2.5rem;
+	min-height: 2.5rem;
+	padding: 0;
+	border-radius: 50%;
+	font-size: 1.05rem;
+	font-weight: 700;
+}
+
+.mg__stats {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.75rem;
+	padding: 0.5rem 0.7rem;
+	background: var(--panel);
+	border-radius: 0.6rem;
+	font-size: 0.85rem;
+	color: var(--muted);
+}
+
+.mg__stat b {
+	color: var(--text);
+	font-variant-numeric: tabular-nums;
+}
+
+.mg__controls {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+}
+
+.mg__controls .btn { flex: 1 1 9rem; }
+
+/* --- Дрон (готовая игра в iframe) ---------------------------------------- */
+
+.mg-drone { padding: 0; }
+
+.mg-drone__frame {
+	display: block;
+	width: 100%;
+	/* Игра рисует полноэкранный canvas, поэтому фрейму нужна заметная высота. */
+	height: min(82vh, 46rem);
+	border: 0;
+	border-radius: var(--radius);
+	background: #0f172a;
+}
+
+@media (max-width: 560px) {
+	.mg-drone__frame { height: min(78vh, 40rem); }
+}
+
+/* --- Image Analysis ------------------------------------------------------ */
+
+.mg-imagery__options {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+	gap: 0.75rem;
+	align-items: stretch;
+}
+
+.mg-imagery__option {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+	padding: 0.55rem;
+	background: var(--panel);
+	border: 1px solid var(--border);
+	border-radius: 0.7rem;
+	color: inherit;
+	font: inherit;
+	cursor: pointer;
+	text-align: left;
+	transition: border-color 0.15s ease, transform 0.1s ease;
+	box-sizing: border-box;
+}
+
+.mg-imagery__option:hover:not(:disabled) { border-color: var(--accent); }
+.mg-imagery__option:disabled { cursor: default; }
+
+.mg-imagery__option img {
+	width: 100%;
+	aspect-ratio: 16 / 10;
+	max-height: 120px;
+	object-fit: cover;
+	border-radius: 0.45rem;
+	background: rgba(0, 0, 0, 0.25);
+	flex-shrink: 0;
+}
+
+.mg-imagery__option.is-correct { border-color: var(--accent); background: rgba(67, 197, 158, 0.16); }
+.mg-imagery__option.is-wrong { border-color: var(--bad); opacity: 0.6; }
+
+.mg-imagery__label {
+	font-size: 0.88rem;
+	line-height: 1.35;
+	display: block;
+	word-break: normal;
+	overflow-wrap: break-word;
+	flex-grow: 1;
+}
+
+.mg-imagery__canvas {
+	position: relative;
+	/* Снимок 4:3 — ограничиваем ширину по высоте окна, чтобы кнопка
+	   «Передать аналитикам» оставалась на экране без прокрутки. */
+	width: 100%;
+	max-width: calc(48vh * 4 / 3);
+	margin-inline: auto;
+	border: 1px solid var(--border);
+	border-radius: 0.6rem;
+	overflow: hidden;
+	cursor: crosshair;
+}
+
+.mg-imagery__canvas img {
+	display: block;
+	width: 100%;
+	height: auto;
+}
+
+.mg-imagery__marks {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+}
+
+.mg-imagery__mark {
+	position: absolute;
+	display: grid;
+	place-items: center;
+	width: 2rem;
+	height: 2rem;
+	border-radius: 50%;
+	transform: translate(-50%, -50%);
+	font-weight: 700;
+	font-size: 0.9rem;
+	animation: mark-pop 0.25s ease;
+}
+
+.mg-imagery__mark--hit {
+	background: rgba(67, 197, 158, 0.35);
+	border: 2px solid var(--accent);
+	color: var(--accent);
+}
+
+.mg-imagery__mark--miss {
+	background: rgba(229, 105, 95, 0.25);
+	border: 2px solid var(--bad);
+	color: var(--bad);
+}
+
+@keyframes mark-pop {
+	from { transform: translate(-50%, -50%) scale(0.4); opacity: 0; }
+	to { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+}
+
+.mg-imagery__feedback {
+	margin: 0;
+	min-height: 2em;
+	font-size: 0.88rem;
+	line-height: 1.4;
+	color: var(--muted);
+}
+
+.mg-imagery__feedback:empty {
+	display: none;
+	min-height: 0;
+	margin: 0;
+}
+
+.mg-imagery__feedback--good { color: var(--accent); }
+.mg-imagery__feedback--bad { color: var(--bad); }
+
+/* --- Экран итога и приглашение на курс ----------------------------------- */
+
+.mg-summary {
+	padding: 0.9rem 1rem;
+	background: var(--panel);
+	border-radius: 0.7rem;
+}
+
+.mg-summary__score {
+	margin: 0 0 0.4rem;
+	font-size: 1.05rem;
+}
+
+.mg-summary__score b { color: var(--accent); }
+
+.mg-summary__note {
+	margin: 0;
+	color: var(--muted);
+	font-size: 0.88rem;
+	line-height: 1.5;
+}
+
+.course-card {
+	padding: 1rem;
+	background: linear-gradient(135deg, rgba(67, 197, 158, 0.14), rgba(91, 192, 248, 0.12));
+	border: 1px solid rgba(67, 197, 158, 0.35);
+	border-radius: 0.7rem;
+}
+
+.course-card__title {
+	margin: 0 0 0.35rem;
+	font-size: 1rem;
+}
+
+.course-card__text {
+	margin: 0 0 0.8rem;
+	color: var(--muted);
+	font-size: 0.88rem;
+	line-height: 1.5;
+}
+
+.course-card__link,
+.course-warning .btn {
+	width: 100%;
+	text-decoration: none;
+}
+
+.course-warning {
+	padding: 0.9rem 1rem;
+	background: var(--panel);
+	border-left: 3px solid var(--warn);
+	border-radius: 0.5rem;
+}
+
+.course-warning p {
+	margin: 0 0 0.75rem;
+	color: var(--muted);
+	font-size: 0.88rem;
+	line-height: 1.5;
+}
+
+.course-warning b { color: var(--text); }
+
+/* --- Аналитика: разбор кейсов -------------------------------------------
+
+   Оформлено в стилистике готовых игр «Эко-Дрон» и «Эко-Радар»: светлая
+   панель, крупные карточки, синие акценты. Поэтому для этой мини-игры
+   осветляется и сама панель оверлея.
+   ------------------------------------------------------------------------ */
+
+.overlay--minigame-decisionCase .overlay__panel {
+	max-width: 34rem;
+	background: #f8fafc;
+	border-color: #e2e8f0;
+}
+
+.dc {
+	--dc-text: #1e293b;
+	--dc-muted: #64748b;
+	--dc-line: #e2e8f0;
+	--dc-blue: #2563eb;
+	--dc-blue-soft: #eff6ff;
+	--dc-good: #10b981;
+	--dc-bad: #ef4444;
+
+	display: flex;
+	flex-direction: column;
+	gap: 0.85rem;
+	padding: clamp(1rem, 3vw, 1.5rem);
+	color: var(--dc-text);
+	text-align: left;
+}
+
+/* --- Шапка --- */
+
+.dc__bar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+}
+
+.dc__brand {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+}
+
+.dc__logo {
+	display: grid;
+	place-items: center;
+	width: 2.5rem;
+	height: 2.5rem;
+	background: var(--dc-blue-soft);
+	border: 1px solid #dbeafe;
+	border-radius: 0.75rem;
+	font-size: 1.2rem;
+}
+
+.dc__name {
+	margin: 0;
+	font-size: 1.05rem;
+	font-weight: 800;
+	letter-spacing: -0.01em;
+}
+
+.dc__status {
+	display: flex;
+	align-items: center;
+	gap: 0.35rem;
+	margin: 0.15rem 0 0;
+	color: var(--dc-muted);
+	font-size: 0.68rem;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+}
+
+.dc__dot {
+	width: 0.4rem;
+	height: 0.4rem;
+	border-radius: 50%;
+	background: var(--dc-good);
+}
+
+.dc__counter { text-align: right; }
+
+.dc__counter-label {
+	display: block;
+	color: var(--dc-muted);
+	font-size: 0.72rem;
+	font-weight: 500;
+}
+
+.dc__counter-value {
+	font-size: 1.6rem;
+	font-weight: 800;
+	line-height: 1;
+	font-variant-numeric: tabular-nums;
+}
+
+.dc__counter-value i {
+	color: #94a3b8;
+	font-size: 0.95rem;
+	font-style: normal;
+}
+
+/* --- Прогресс --- */
+
+.dc__progress {
+	height: 0.35rem;
+	background: #e2e8f0;
+	border-radius: 999px;
+	overflow: hidden;
+}
+
+.dc__progress span {
+	display: block;
+	height: 100%;
+	background: var(--dc-blue);
+	border-radius: inherit;
+	transition: width 0.4s ease;
+}
+
+/* --- Карточка кейса --- */
+
+.dc__case {
+	display: grid;
+	grid-template-columns: minmax(0, 9rem) 1fr;
+	gap: 0.9rem;
+	padding: 0.75rem;
+	background: #fff;
+	border: 1px solid var(--dc-line);
+	border-radius: 1rem;
+	box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.dc__image {
+	width: 100%;
+	aspect-ratio: 4 / 3;
+	object-fit: cover;
+	border-radius: 0.7rem;
+	background: #e2e8f0;
+}
+
+.dc__case-title {
+	margin: 0 0 0.3rem;
+	font-size: 0.98rem;
+	font-weight: 700;
+	line-height: 1.3;
+}
+
+.dc__case-text {
+	margin: 0;
+	color: var(--dc-muted);
+	font-size: 0.88rem;
+	line-height: 1.5;
+}
+
+@media (max-width: 520px) {
+	.dc__case { grid-template-columns: 1fr; }
+	.dc__image { max-height: 9rem; }
+}
+
+/* --- Варианты решений --- */
+
+.dc__options {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+.dc__option {
+	display: flex;
+	align-items: center;
+	gap: 0.7rem;
+	width: 100%;
+	min-height: 3rem;
+	padding: 0.7rem 0.9rem;
+	background: #fff;
+	border: 1.5px solid var(--dc-line);
+	border-radius: 0.85rem;
+	color: var(--dc-text);
+	font: inherit;
+	font-size: 0.92rem;
+	line-height: 1.35;
+	text-align: left;
+	cursor: pointer;
+	transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+	-webkit-tap-highlight-color: transparent;
+}
+
+@media (hover: hover) {
+	.dc__option:hover:not(:disabled) {
+		border-color: #93c5fd;
+		background: var(--dc-blue-soft);
+	}
+}
+
+.dc__option:active:not(:disabled) { transform: translateY(1px); }
+.dc__option:disabled { cursor: default; }
+
+.dc__option-mark {
+	flex: 0 0 auto;
+	display: grid;
+	place-items: center;
+	width: 1.6rem;
+	height: 1.6rem;
+	border: 1.5px solid var(--dc-line);
+	border-radius: 50%;
+	color: #fff;
+}
+
+.dc__option-mark svg { width: 0.9rem; height: 0.9rem; }
+
+.dc__option-text { flex: 1; }
+
+.dc__option.is-correct {
+	border-color: var(--dc-good);
+	background: #ecfdf5;
+}
+
+.dc__option.is-correct .dc__option-mark {
+	background: var(--dc-good);
+	border-color: var(--dc-good);
+}
+
+.dc__option.is-wrong {
+	border-color: var(--dc-bad);
+	background: #fef2f2;
+}
+
+.dc__option.is-wrong .dc__option-mark {
+	background: var(--dc-bad);
+	border-color: var(--dc-bad);
+}
+
+/* Верный вариант, подсвеченный после ошибки */
+.dc__option.is-answer {
+	border-color: var(--dc-good);
+	border-style: dashed;
+}
+
+.dc__option:disabled:not(.is-correct):not(.is-wrong):not(.is-answer) { opacity: 0.55; }
+
+/* --- Обратная связь --- */
+
+.dc__feedback {
+	display: flex;
+	gap: 0.6rem;
+	padding: 0.75rem 0.9rem;
+	border-radius: 0.85rem;
+	font-size: 0.88rem;
+	line-height: 1.5;
+}
+
+.dc__feedback[hidden] { display: none; }
+
+.dc__feedback p { margin: 0; }
+
+.dc__feedback-icon {
+	flex: 0 0 auto;
+	display: grid;
+	place-items: center;
+	width: 1.4rem;
+	height: 1.4rem;
+	border-radius: 50%;
+	color: #fff;
+}
+
+.dc__feedback-icon svg { width: 0.8rem; height: 0.8rem; }
+
+.dc__feedback--good {
+	background: #ecfdf5;
+	color: #065f46;
+}
+
+.dc__feedback--good .dc__feedback-icon { background: var(--dc-good); }
+
+.dc__feedback--bad {
+	background: #fef2f2;
+	color: #991b1b;
+}
+
+.dc__feedback--bad .dc__feedback-icon { background: var(--dc-bad); }
+
+/* --- Кнопки --- */
+
+.dc__next,
+.dc__leave {
+	width: 100%;
+	min-height: 3.25rem;
+	padding: 0.85rem 1.2rem;
+	border: 0;
+	border-radius: 1rem;
+	font: inherit;
+	font-size: 1rem;
+	font-weight: 700;
+	cursor: pointer;
+	transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+}
+
+.dc__next[hidden] { display: none; }
+
+.dc__next {
+	background: var(--dc-blue);
+	color: #fff;
+	box-shadow: 0 4px 0 #1d4ed8;
+}
+
+.dc__next:active { transform: translateY(3px); box-shadow: none; }
+
+.dc__leave {
+	background: #ffffff !important;
+	color: #475569 !important;
+	border: 1px solid var(--dc-line) !important;
+	box-shadow: none !important;
+}
+
+.dc__leave:disabled { opacity: 0.6; cursor: default; }
+
+@media (hover: hover) {
+	.dc__next:hover { background: #1d4ed8; }
+	.dc__leave:hover:not(:disabled) {
+		background: #f1f5f9 !important;
+		color: #0f172a !important;
+		border-color: #cbd5e1 !important;
+	}
+}
+
+.dc--result > .dc__leave {
+	width: auto;
+	margin-left: 1.1rem;
+	margin-right: 1.1rem;
+	box-sizing: border-box;
+}
+
+/* --- Экран итога --- */
+
+.dc--result {
+	position: relative;
+	text-align: center;
+	gap: 0.7rem;
+}
+
+.dc__close {
+	position: absolute;
+	top: 0.9rem;
+	right: 0.9rem;
+	display: grid;
+	place-items: center;
+	width: 2.25rem;
+	height: 2.25rem;
+	padding: 0;
+	background: #f1f5f9;
+	border: 0;
+	border-radius: 50%;
+	color: #64748b;
+	cursor: pointer;
+	transition: background 0.15s ease, color 0.15s ease;
+}
+
+.dc__close svg { width: 1rem; height: 1rem; }
+
+@media (hover: hover) {
+	.dc__close:hover { background: #e2e8f0; color: #334155; }
+}
+
+.dc__seal {
+	display: grid;
+	place-items: center;
+	width: 4.5rem;
+	height: 4.5rem;
+	margin: 0.5rem auto 0;
+	border-radius: 50%;
+}
+
+.dc__seal svg { width: 2.2rem; height: 2.2rem; }
+
+.dc__seal--good { background: #d1fae5; color: var(--dc-good); }
+.dc__seal--warn { background: #fef3c7; color: #d97706; }
+
+.dc__result-title {
+	margin: 0;
+	font-size: clamp(1.4rem, 4vw, 1.75rem);
+	font-weight: 800;
+	letter-spacing: -0.02em;
+}
+
+.dc__result-sub {
+	margin: 0;
+	color: var(--dc-muted);
+	font-size: 0.95rem;
+}
+
+.dc__result-sub b { color: var(--dc-text); }
+
+.dc__stars {
+	display: flex;
+	justify-content: center;
+	gap: 0.4rem;
+	margin: 0.2rem 0 0.1rem;
+}
+
+.dc__star {
+	display: block;
+	width: 2rem;
+	height: 2rem;
+	color: #fbbf24;
+}
+
+.dc__star svg { width: 100%; height: 100%; }
+
+.dc__star.is-lost { color: #cbd5e1; transform: scale(0.8); }
+
+.dc__verdict {
+	margin: 0;
+	color: var(--dc-muted);
+	font-size: 0.9rem;
+	line-height: 1.5;
+}
+
+.dc__fact {
+	align-self: center;
+	margin: 0.3rem 0 0.2rem;
+	padding: 0.5rem 1rem;
+	background: transparent;
+	border: 1px dashed #cbd5e1;
+	border-radius: 999px;
+	color: var(--dc-blue);
+	font: inherit;
+	font-size: 0.85rem;
+	font-weight: 600;
+	cursor: pointer;
+}
+
+@media (hover: hover) {
+	.dc__fact:hover { background: var(--dc-blue-soft); border-style: solid; }
+}
+
+/* --- Приглашение на курс --- */
+
+.dc__cta {
+	position: relative;
+	margin-top: 0.4rem;
+	padding: 1.1rem;
+	background: linear-gradient(135deg, #1e293b, #0f172a);
+	border-radius: 1rem;
+	text-align: left;
+	overflow: hidden;
+}
+
+.dc__cta::after {
+	content: '';
+	position: absolute;
+	top: -2rem;
+	right: -2rem;
+	width: 7rem;
+	height: 7rem;
+	background: rgba(56, 189, 248, 0.2);
+	border-radius: 50%;
+	filter: blur(1.5rem);
+}
+
+.dc__cta-title {
+	position: relative;
+	margin: 0 0 0.4rem;
+	color: #fff;
+	font-size: 1rem;
+	font-weight: 800;
+}
+
+.dc__cta-text {
+	position: relative;
+	margin: 0 0 1rem;
+	color: #cbd5e1;
+	font-size: 0.85rem;
+	line-height: 1.55;
+}
+
+.dc__cta-btn {
+	position: relative;
+	display: block;
+	width: 100%;
+	padding: 0.85rem 1rem;
+	background: #0ea5e9;
+	border-radius: 0.85rem;
+	color: #fff;
+	font-weight: 700;
+	font-size: 0.95rem;
+	text-align: center;
+	text-decoration: none;
+	box-shadow: 0 8px 20px rgba(14, 165, 233, 0.25);
+	transition: background 0.15s ease;
+}
+
+@media (hover: hover) {
+	.dc__cta-btn:hover { background: #38bdf8; }
+}
+
+.dc__warning {
+	padding: 0.9rem 1rem;
+	background: #fffbeb;
+	border: 1px solid #fde68a;
+	border-radius: 1rem;
+	text-align: left;
+}
+
+.dc__warning[hidden] { display: none; }
+
+.dc__warning p {
+	margin: 0 0 0.8rem;
+	color: #92400e;
+	font-size: 0.85rem;
+	line-height: 1.55;
+}
+
+.dc__warning b { color: #78350f; }
+
+.dc__warning-actions {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+	width: 100%;
+}
+
+.dc__warning .dc__cta-btn,
+.dc__warning .dc__leave {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	box-sizing: border-box;
+	min-height: 2.85rem;
+	padding: 0.75rem 1.2rem;
+	border-radius: 0.85rem;
+	font-size: 0.95rem;
+	font-weight: 700;
+	text-align: center;
+	box-shadow: none !important;
+}
+
+.dc__warning .dc__cta-btn {
+	background: var(--dc-blue) !important;
+	color: #ffffff !important;
+	border: 1px solid var(--dc-blue) !important;
+	text-decoration: none;
+}
+
+.dc__warning .dc__leave {
+	background: #ffffff !important;
+	color: #475569 !important;
+	border: 1px solid #cbd5e1 !important;
+}
+
+@media (hover: hover) {
+	.dc__warning .dc__cta-btn:hover { background: #1d4ed8 !important; }
+	.dc__warning .dc__leave:hover:not(:disabled) {
+		background: #f1f5f9 !important;
+		color: #0f172a !important;
+		border-color: #94a3b8 !important;
+	}
+}
+
+/* --- Match-3 (iframe готовой игры) --------------------------------------- */
+
+.mg-match3 { padding: 0; }
+
+.mg-match3__frame {
+	display: block;
+	width: 100%;
+	height: min(78vh, 44rem);
+	border: 0;
+	border-radius: var(--radius);
+	background: var(--bg);
+}
+
+@media (max-width: 560px) {
+	.mg-match3__frame { height: min(72vh, 36rem); }
+}
+
+/* --- Пазл / Восстановление снимка (iframe готовой игры) ------------------ */
+
+.mg-puzzle { padding: 0; }
+
+.mg-puzzle__frame {
+	display: block;
+	width: 100%;
+	height: min(84vh, 48rem);
+	border: 0;
+	border-radius: var(--radius);
+	background: #0f172a;
+}
+
+@media (max-width: 560px) {
+	.mg-puzzle__frame { height: min(78vh, 40rem); }
+}
+
+/* Карточки снимков растут вместе с изображением и подписью. */
+.mg-imagery__option {
+	width: 100%;
+	height: auto;
+	min-width: 0;
+	min-height: 0;
+	margin: 0;
+	box-sizing: border-box;
+	align-items: stretch;
+	white-space: normal;
+	text-align: left;
+}
+.mg-imagery__option img { display: block; height: auto; flex: 0 0 auto; }
+.mg-imagery__label { display: block; overflow-wrap: anywhere; }
+.mg > * { flex-shrink: 0; }
+.mg__fact { height: 2.5rem; margin: 0; }
+
+/* --- Адаптивность мини-игр --------------------------------------------- */
+@media (max-width: 640px) {
+	.mg { gap: .65rem; padding: .75rem; }
+	.mg__header { gap: .5rem; }
+	.mg__goal { font-size: .82rem; }
+	.mg__stats { gap: .4rem .7rem; padding: .45rem .55rem; }
+	.mg__controls { gap: .4rem; }
+	.mg__controls .btn { flex-basis: 100%; }
+
+	.mg-imagery__options { grid-template-columns: 1fr; }
+	.mg-imagery__option { display: grid; grid-template-columns: 7rem minmax(0, 1fr); align-items: center; gap: .7rem; }
+	.mg-imagery__option img { width: 7rem; }
+	.mg-imagery__canvas { max-width: min(100%, calc(45dvh * 4 / 3)); }
+
+	.case-card { grid-template-columns: 1fr; }
+	.mg-match3__frame,
+	.mg-puzzle__frame { height: calc(100dvh - 1rem); }
+}
+
+@media (max-width: 380px) {
+	.mg-imagery__option { grid-template-columns: 5.5rem minmax(0, 1fr); }
+	.mg-imagery__option img { width: 5.5rem; }
+}
+
+@media (max-height: 520px) and (orientation: landscape) {
+	.mg { gap: .45rem; padding: .55rem; }
+	.mg__goal { margin-top: .1rem; }
+	.mg-imagery__options { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .45rem; }
+	.mg-imagery__option { padding: .35rem; gap: .25rem; }
+	.mg-imagery__option img { max-height: 25dvh; object-fit: cover; }
+	.mg-imagery__canvas { max-width: calc(48dvh * 4 / 3); }
+	.mg-match3__frame,
+	.mg-puzzle__frame { height: calc(100dvh - .5rem); }
+}

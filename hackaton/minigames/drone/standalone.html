@@ -1,0 +1,1977 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <!-- Отключаем масштабирование для корректной работы touch-событий -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Эко-Дрон: Чистый Берег</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a; 
+            touch-action: none; 
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        
+        #gameCanvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .pointer-events-auto {
+            pointer-events: auto;
+        }
+
+        .star-icon {
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .star-lost {
+            opacity: 0.2;
+            transform: scale(0.7);
+            filter: grayscale(100%);
+        }
+
+        .modal-enter {
+            animation: modalPop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        @keyframes modalPop {
+            0% { opacity: 0; transform: scale(0.9) translateY(30px); }
+            100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        .tutorial-popup {
+            position: absolute;
+            background: rgba(15, 23, 42, 0.97);
+            border: 2px solid #38bdf8;
+            color: white;
+            padding: 14px;
+            border-radius: 16px;
+            width: min(280px, calc(100vw - 24px));
+            overflow: visible;
+            z-index: 40;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.6);
+            transform: translateY(8px) scale(0.98);
+            transform-origin: center;
+            transition: opacity 0.22s ease, transform 0.22s ease;
+            pointer-events: auto;
+            opacity: 0;
+            box-sizing: border-box;
+            --arrow-left: 50%;
+        }
+        
+        .tutorial-popup.visible {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+        
+        .tutorial-popup::after {
+            content: '';
+            position: absolute;
+            left: var(--arrow-left);
+            margin-left: -10px;
+            border-style: solid;
+        }
+
+        .tutorial-popup.placement-above::after {
+            bottom: -10px;
+            border-width: 10px 10px 0;
+            border-color: #38bdf8 transparent transparent transparent;
+        }
+
+        .tutorial-popup.placement-below::after {
+            top: -10px;
+            border-width: 0 10px 10px;
+            border-color: transparent transparent #38bdf8 transparent;
+        }
+
+        .tutorial-popup.placement-floating::after {
+            display: none;
+        }
+
+        .tutorial-popup.compact {
+            padding: 10px 12px;
+            border-radius: 14px;
+        }
+
+        .tutorial-popup.compact #tutorialText {
+            font-size: 12px;
+            line-height: 1.35;
+            margin-bottom: 10px;
+        }
+
+        .tutorial-popup.compact button {
+            padding-top: 8px;
+            padding-bottom: 8px;
+        }
+
+        #factModal {
+            justify-content: flex-end;
+            align-items: center;
+            padding: 12px;
+            padding-bottom: max(14px, env(safe-area-inset-bottom));
+            box-sizing: border-box;
+        }
+
+        #factCard {
+            width: min(420px, calc(100vw - 24px));
+            background: rgba(15, 23, 42, 0.96);
+            border: 1px solid rgba(250, 204, 21, 0.55);
+            border-radius: 20px;
+            box-shadow: 0 18px 50px rgba(0,0,0,0.45), 0 0 30px rgba(250, 204, 21, 0.10);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+
+        .fact-bulb-glow {
+            box-shadow: 0 0 24px rgba(250, 204, 21, 0.45);
+        }
+
+        #uiBar {
+            padding-top: max(8px, env(safe-area-inset-top));
+            padding-right: max(8px, env(safe-area-inset-right));
+            padding-bottom: max(8px, env(safe-area-inset-bottom));
+            padding-left: max(8px, env(safe-area-inset-left));
+        }
+
+        #statusPanel {
+            box-sizing: border-box;
+        }
+
+        #restartBtn {
+            pointer-events: auto;
+            min-width: 40px;
+            min-height: 40px;
+            touch-action: manipulation;
+        }
+
+        #restartBtn .restart-icon {
+            width: 20px;
+            height: 20px;
+            flex: 0 0 20px;
+            display: block;
+            transform-origin: 50% 50%;
+        }
+
+        #instructionText {
+            max-width: min(760px, calc(100vw - 20px));
+            box-sizing: border-box;
+        }
+
+        #menuModal, #winModal, #errorModal {
+            min-height: 100dvh;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            padding-top: max(12px, env(safe-area-inset-top));
+            padding-right: max(12px, env(safe-area-inset-right));
+            padding-bottom: max(12px, env(safe-area-inset-bottom));
+            padding-left: max(12px, env(safe-area-inset-left));
+            box-sizing: border-box;
+        }
+
+        #menuModal > div, #winModal > div, #errorModal > div {
+            max-height: calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+            overflow-y: auto;
+            overscroll-behavior: contain;
+        }
+
+        @media (max-width: 480px) {
+            #statusPanel {
+                padding: 10px;
+                gap: 8px;
+                flex-wrap: wrap;
+                border-radius: 14px;
+            }
+
+            #statusLeft {
+                font-size: 0.9rem;
+            }
+
+            #statusRight {
+                width: 100%;
+                justify-content: space-between;
+                gap: 8px;
+            }
+
+            #batteryTrack {
+                width: min(30vw, 112px);
+                min-width: 72px;
+            }
+
+            #starContainer {
+                gap: 0;
+            }
+
+            #instructionText {
+                margin-top: 8px;
+                padding: 8px 10px;
+                font-size: 0.75rem;
+                line-height: 1.25rem;
+                border-radius: 12px;
+            }
+
+            #menuModal > div, #winModal > div {
+                padding: 20px;
+                border-radius: 22px;
+            }
+
+            #menuModal h1, #winModal h2 {
+                font-size: 1.55rem;
+                line-height: 1.2;
+            }
+        }
+
+        @media (max-width: 360px) {
+            #statusPanel { padding: 8px; gap: 6px; }
+            #statusRight { gap: 6px; }
+            #batteryTrack { width: 25vw; min-width: 58px; }
+            #starContainer svg { width: 16px; height: 16px; }
+            #restartBtn { min-width: 36px; min-height: 36px; padding: 7px; }
+            #restartBtn svg { width: 18px; height: 18px; }
+        }
+
+        @media (max-height: 520px) and (orientation: landscape) {
+            #statusPanel {
+                padding: 7px 9px;
+                border-radius: 12px;
+            }
+
+            #instructionText {
+                margin-top: 5px;
+                padding: 6px 9px;
+                font-size: 0.7rem;
+            }
+
+            #menuModal > div, #winModal > div {
+                padding: 16px;
+            }
+
+            #menuModal .w-24.h-24, #winModal .w-20.h-20 {
+                width: 52px;
+                height: 52px;
+                margin-bottom: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="tutorialOverlay" class="overlay hidden z-40">
+        <div id="tutorialBox" class="tutorial-popup">
+            <p id="tutorialText" class="text-sm font-semibold mb-4 leading-relaxed text-slate-200">Текст обучения</p>
+            <button onclick="nextTutorialStep()" class="w-full bg-sky-500 hover:bg-sky-400 text-white font-bold py-2.5 rounded-xl text-sm shadow-[0_4px_0_rgb(3,105,161)] active:shadow-[0_0px_0_rgb(3,105,161)] active:translate-y-1 transition-all">
+                Понятно
+            </button>
+        </div>
+    </div>
+
+    <div id="uiBar" class="overlay hidden z-30">
+        <div id="statusPanel" class="flex justify-between items-center max-w-4xl mx-auto w-full bg-slate-900/70 backdrop-blur-md rounded-2xl p-4 shadow-xl border border-white/10">
+            <div id="statusLeft" class="text-white font-bold text-lg sm:text-xl tracking-wide flex items-center gap-2 shrink-0">
+                <span class="bg-sky-500 text-[10px] sm:text-xs px-2 py-1 rounded-md text-white font-black">МИССИЯ</span>
+                <span id="levelIndicator" class="text-sky-400">1</span>
+            </div>
+            
+            <div id="statusRight" class="flex items-center gap-3 sm:gap-5 min-w-0">
+                <div class="hidden sm:flex items-center gap-2 text-slate-300 text-xs font-bold uppercase tracking-wider shrink-0">
+                    <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                    Батарея
+                </div>
+                <div id="batteryTrack" class="w-24 sm:w-48 h-4 bg-slate-800 rounded-full overflow-hidden relative shadow-inner shrink-0">
+                    <div id="energyBar" class="h-full bg-emerald-400 w-full transition-all duration-300 ease-out"></div>
+                </div>
+                <div id="starContainer" class="flex gap-1 shrink-0" aria-label="Рейтинг миссии">
+                </div>
+                <button id="restartBtn" onclick="restartLevel()" class="flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-white border border-white/10 shadow-lg active:translate-y-0.5 transition-all" aria-label="Перезапустить текущий уровень" title="Перезапустить уровень">
+                    <svg class="restart-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.15" d="M20 11a8 8 0 1 0-2.34 5.66"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.15" d="M20 4v7h-7"></path>
+                    </svg>
+                    <span class="hidden sm:inline text-xs font-bold uppercase tracking-wide">Рестарт</span>
+                </button>
+            </div>
+        </div>
+        
+        <div id="instructionText" class="text-center mt-4 sm:mt-6 text-white text-sm sm:text-base font-medium bg-slate-900/80 backdrop-blur inline-block mx-auto px-6 py-3 rounded-2xl border border-slate-700 shadow-lg transition-opacity duration-500">
+            Нарисуйте маршрут.
+        </div>
+    </div>
+
+    <div id="menuModal" class="overlay pointer-events-auto bg-slate-900/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl text-center modal-enter relative overflow-hidden">
+            <div class="absolute -top-10 -right-10 w-32 h-32 bg-sky-100 rounded-full opacity-50"></div>
+            <div class="w-24 h-24 bg-sky-50 rounded-2xl flex items-center justify-center mx-auto mb-6 transform rotate-3 shadow-sm border border-sky-100">
+                <svg class="w-12 h-12 text-sky-500 transform -rotate-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+            </div>
+            <h1 class="text-3xl font-black text-slate-800 mb-3">Дрон-Эколог</h1>
+            <p class="text-slate-500 mb-8 font-medium leading-relaxed">
+                Спланируйте маршрут беспилотника для аэрофотосъемки побережья. Экономьте заряд и не пересекайте особо охраняемые природные территории.
+            </p>
+            <button onclick="startGame()" class="w-full py-4 bg-emerald-500 hover:bg-emerald-400 text-white font-black uppercase tracking-wider rounded-2xl shadow-[0_6px_0_rgb(4,120,87)] active:shadow-[0_0px_0_rgb(4,120,87)] active:translate-y-1.5 transition-all text-lg">
+                Начать миссию
+            </button>
+        </div>
+    </div>
+
+    <div id="winModal" class="overlay pointer-events-auto bg-slate-900/90 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl text-center modal-enter relative">
+            <!-- Возврат в новеллу. Показывается только внутри неё. -->
+            <button id="novelCloseBtn" onclick="askBeforeLeaving()" class="hidden absolute top-4 right-4 w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 flex items-center justify-center transition-colors" aria-label="Вернуться к работе" title="Вернуться к работе">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+
+            <div class="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg class="w-10 h-10 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+            </div>
+            <h2 class="text-3xl font-black text-slate-800 mb-2">Данные получены!</h2>
+            <p id="winMessage" class="text-slate-500 mb-6 font-medium">Снимки ДЗЗ успешно переданы в аналитический центр.</p>
+            
+            <div id="resultStars" class="flex justify-center gap-2 mb-8">
+            </div>
+
+            <!-- Возврат в новеллу: показывается только внутри неё -->
+            <div id="novelContinueBtnContainer" class="hidden">
+                <button onclick="sendDroneResult()" class="w-full py-4 bg-emerald-500 hover:bg-emerald-400 text-white font-black uppercase tracking-wider rounded-2xl shadow-[0_6px_0_rgb(4,120,87)] active:shadow-[0_0px_0_rgb(4,120,87)] active:translate-y-1.5 transition-all text-lg">
+                    Продолжить
+                </button>
+            </div>
+
+            <div id="nextLevelBtnContainer">
+                <button onclick="nextLevel()" class="w-full py-4 bg-sky-500 hover:bg-sky-400 text-white font-black uppercase tracking-wider rounded-2xl shadow-[0_6px_0_rgb(3,105,161)] active:shadow-[0_0px_0_rgb(3,105,161)] active:translate-y-1.5 transition-all text-lg">
+                    Следующий участок
+                </button>
+            </div>
+
+            <!-- Интеграция с проектом «Чистый берег» -->
+            <div id="finalCtaContainer" class="hidden mt-6 pt-6 border-t border-slate-100 text-left">
+                <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-5 shadow-lg relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-24 h-24 bg-sky-500/20 rounded-full blur-2xl"></div>
+                    <h3 class="font-black text-white mb-2 text-lg">Проект «Чистый берег»</h3>
+                    <p class="text-sm text-slate-300 mb-5 leading-relaxed">Вы отлично строите маршруты! Хотите научиться анализировать реальные спутниковые снимки и защищать природу?</p>
+                    <a href="https://zaprirodu.ispring.ru/signup/LvEGzxy0_owor3LFnvf7L2qVk5I" target="_blank" rel="noopener noreferrer" class="block text-center w-full py-3.5 bg-sky-500 hover:bg-sky-400 text-white font-bold rounded-xl transition-colors shadow-lg shadow-sky-500/30">
+                        Начать обучение
+                    </a>
+                </div>
+            </div>
+
+            <!-- Подтверждение выхода: не даём проскочить мимо курса не глядя -->
+            <div id="leaveWarning" class="hidden mt-6 pt-6 border-t border-slate-100 text-left">
+                <p class="text-sm text-slate-600 mb-4 leading-relaxed">
+                    <b class="text-slate-800">Точно уходите?</b> На курсе «Чистый берег» много интересного:
+                    как читать спутниковые снимки, откуда берутся данные о загрязнениях
+                    и что с ними делают дальше. Это бесплатно.
+                </p>
+                <div class="flex flex-col gap-2">
+                    <a href="https://zaprirodu.ispring.ru/signup/LvEGzxy0_owor3LFnvf7L2qVk5I" target="_blank" rel="noopener noreferrer" class="block text-center w-full py-3 bg-sky-500 hover:bg-sky-400 text-white font-bold rounded-xl transition-colors">
+                        Посмотреть курс
+                    </a>
+                    <button onclick="sendDroneResult()" class="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl transition-colors">
+                        Вернуться к работе
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="errorModal" class="overlay pointer-events-auto z-50 hidden items-center justify-center p-4">
+        <div class="bg-white border-4 border-red-500 rounded-3xl p-6 max-w-xs w-full shadow-2xl text-center modal-enter">
+            <div class="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </div>
+            <p id="errorMessage" class="text-slate-800 font-bold mb-2 text-lg">Маршрут недействителен!</p>
+            <p id="errorHint" class="text-slate-500 text-sm mb-5 hidden"></p>
+            <div class="grid grid-cols-1 gap-2">
+                <button onclick="closeError()" class="w-full py-3 bg-red-500 hover:bg-red-400 text-white font-bold rounded-xl shadow-[0_4px_0_rgb(185,28,28)] active:shadow-[0_0px_0_rgb(185,28,28)] active:translate-y-1 transition-all">
+                    Перерисовать
+                </button>
+                <button onclick="restartLevel()" class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors">
+                    Начать уровень заново
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Интерактивный факт: короткая справка прямо по ходу миссии -->
+    <div id="factModal" class="overlay pointer-events-auto z-40 hidden">
+        <div id="factCard" class="p-4 sm:p-5 text-left modal-enter">
+            <div class="flex items-start gap-3">
+                <div class="fact-bulb-glow w-11 h-11 rounded-full bg-amber-300/15 border border-amber-300/40 flex items-center justify-center shrink-0">
+                    <svg class="w-6 h-6 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 18h6M10 22h4M8.6 14.5A7 7 0 1115.4 14.5c-.9.75-1.4 1.7-1.4 2.5h-4c0-.8-.5-1.75-1.4-2.5z"></path></svg>
+                </div>
+                <div class="min-w-0 flex-1">
+                    <div class="text-[10px] uppercase tracking-[0.18em] font-black text-amber-300 mb-1">Полезный факт</div>
+                    <h3 id="factTitle" class="text-white font-black text-lg leading-tight mb-2">Термин</h3>
+                    <p id="factText" class="text-slate-200 text-sm leading-relaxed"></p>
+                </div>
+            </div>
+            <button onclick="closeFact()" class="mt-4 w-full py-2.5 rounded-xl bg-amber-300 hover:bg-amber-200 text-slate-900 font-black text-sm shadow-[0_4px_0_rgb(180,83,9)] active:shadow-none active:translate-y-1 transition-all">
+                Запомнил
+            </button>
+        </div>
+    </div>
+
+    <script>
+        /* ================================================================
+           МОСТ С НОВЕЛЛОЙ
+
+           Страница работает в двух режимах:
+             1. внутри новеллы — открыта в iframe, ждёт DRONE_START с конфигом
+                (сколько участков нужно пройти) и отдаёт результат через
+                DRONE_COMPLETE;
+             2. автономно — обычная игра со всеми уровнями подряд.
+
+           Игровая логика ниже не менялась.
+           ================================================================ */
+
+        const IN_IFRAME = window.parent !== window;
+
+        // Сколько уровней нужно пройти, чтобы задача в новелле засчиталась.
+        // Приходит из data/minigames.json, по умолчанию — все.
+        let requiredLevels = Infinity;
+
+        // Звёзды за каждый пройденный участок.
+        const earnedStars = [];
+
+        let resolveHostConfig = null;
+        const hostConfigPromise = new Promise((resolve) => { resolveHostConfig = resolve; });
+
+        function postToHost (type, payload) {
+            if (IN_IFRAME) window.parent.postMessage({ type, payload }, '*');
+        }
+
+        window.addEventListener('message', (event) => {
+            const message = event.data || {};
+            if (message.type === 'DRONE_START' && resolveHostConfig) {
+                resolveHostConfig((message.payload && message.payload.config) || null);
+                resolveHostConfig = null;
+            }
+        });
+
+        // Крестик не закрывает экран сразу: сначала показываем, что за курсом
+        // стоит зайти. Второе нажатие крестика уже выходит.
+        function askBeforeLeaving () {
+            const warning = document.getElementById('leaveWarning');
+
+            if (warning.classList.contains('hidden')) {
+                warning.classList.remove('hidden');
+                warning.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                return;
+            }
+
+            sendDroneResult();
+        }
+
+        // Итог уходит в новеллу по кнопке, а не автоматически: иначе новелла
+        // свернёт мини-игру и экран результата мелькнёт на долю секунды.
+        function sendDroneResult () {
+            const totalStars = earnedStars.reduce((sum, value) => sum + value, 0);
+            const maxStars = earnedStars.length * MAX_STARS;
+
+            postToHost('DRONE_COMPLETE', {
+                // Считаем по номеру текущего участка: массив звёзд может быть
+                // разреженным, если уровень перезапускали.
+                levelsCompleted: currentLevelIndex + 1,
+                stars: earnedStars[earnedStars.length - 1] || 0,
+                totalStars,
+                maxStars,
+                score: totalStars * 100
+            });
+        }
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d', { alpha: false });
+        
+        let width, height;
+        let logicalWidth = 1000;
+        let logicalHeight = 1000;
+        let scale = 1;
+        let offsetX = 0;
+        let offsetY = 0;
+
+        let state = 'menu'; // menu, tutorial, fact, playing, drawing, clearing, flying, level_complete
+        let flyState = 'idle'; // idle, takeoff, cruising, landing
+        let takeoffTimer = 0;
+        let droneDisplayScale = 0.6; // Масштаб дрона для иллюзии высоты
+        let lastFrameTime = 0;
+        let currentDroneSpeed = 270;
+        let droneWindLean = 0;
+        let activePointerId = null;
+        let levelSessionId = 0;
+        let instructionHideTimer = null;
+        let fogCoverTimer = null;
+        let fogCountdownTimer = null;
+        let fogPreviewDeadline = 0;
+        let fogPreviewRemaining = 0;
+        const seenFactKeys = new Set();
+        let openFactKey = null;
+        
+        let currentLevelIndex = 0;
+        let currentPath = [];
+        let pathLength = 0; 
+        let energySpent = 0; 
+        let activeStars = 5;
+        let animationProgress = 0;
+        
+        let dronePos = {x: 0, y: 0};
+        let droneAngle = 0;
+        let currentTutorialStep = 0;
+        let cloudsOpacity = 0;
+        let cloudsTargetOpacity = 0;
+        let fogEdgeReveal = 0;
+        let fogEnergySpent = 0;
+        let fogSwipeLastPos = null;
+
+        const DRONE_SPEED = 270; // Базовая скорость в логических единицах/сек — не зависит от FPS
+        const TAKEOFF_DURATION = 1100;
+        const FOG_CLEAR_COST = 0.90; 
+        const DEFAULT_FOG_PREVIEW_DELAY = 3800;
+        const MAX_STARS = 5;
+        const TARGET_RADIUS = 35;
+        const BASE_RADIUS = 40;
+        const LAND_ENERGY_MULTIPLIER = 2.0; // Над сушей тратится в 2 раза больше энергии
+
+        const levels = [
+            {
+                // Уровень 1: Обучение
+                start: { x: 200, y: 500 },
+                end: { x: 800, y: 500 },
+                targets: [ { x: 500, y: 500, scanned: false } ],
+                obstacles: [],
+                windZones: [],
+                clouds: [],
+                land: [
+                    { x: 150, y: 500, r: 150 }, 
+                    { x: 850, y: 500, r: 150 }  
+                ],
+                maxLength: 1200, 
+                instruction: "Проведите маршрут от базы через пятно до площадки.",
+                facts: [
+                    { key: 'dzz', anchor: 'target', index: 0, offsetX: 58, offsetY: -58, title: 'Что такое ДЗЗ?', text: 'ДЗЗ — дистанционное зондирование Земли. Дрон получает информацию о поверхности с расстояния: например, делает снимки загрязнений, не контактируя с ними напрямую.' }
+                ],
+                tutorialSteps: [
+                    { target: 'start', text: "Это ваш дрон-эколог. Он готов к взлету для съемки побережья. Светящаяся лампочка на карте объяснит новые термины по ходу миссии." },
+                    { target: 'pollution', text: "Масляное пятно. Проведите линию через него, чтобы сделать снимок." },
+                    { target: 'end', text: "Посадочная площадка. Завершите линию здесь." }
+                ]
+            },
+            {
+                // Уровень 2: ООПТ и Баланс суша/вода
+                start: { x: 150, y: 800 },
+                end: { x: 850, y: 200 },
+                targets: [
+                    { x: 300, y: 400, scanned: false },
+                    { x: 700, y: 600, scanned: false }
+                ],
+                obstacles: [
+                    { x: 500, y: 500, radius: 140 } 
+                ],
+                windZones: [],
+                clouds: [],
+                land: [
+                    { x: 150, y: 800, r: 180 },
+                    { x: 850, y: 200, r: 180 },
+                    { x: 200, y: 200, r: 200 }, 
+                    { x: 800, y: 800, r: 200 }
+                ],
+                maxLength: 1800,
+                instruction: "Над зеленой сушей тратится х2 батареи. Пролетать над зонами ООПТ запрещено!",
+                facts: [
+                    { key: 'oopt', anchor: 'obstacle', index: 0, offsetX: 0, offsetY: -185, title: 'Что такое ООПТ?', text: 'ООПТ — особо охраняемая природная территория. Для таких участков действуют специальные правила охраны, поэтому в этой миссии маршрут дрона нельзя прокладывать через обозначенную зону.' }
+                ],
+                tutorialSteps: []
+            },
+            {
+                // Уровень 3: Воздушные потоки (Ветер)
+                start: { x: 150, y: 500 },
+                end: { x: 850, y: 500 },
+                targets: [
+                    { x: 500, y: 250, scanned: false },
+                    { x: 500, y: 750, scanned: false }
+                ],
+                obstacles: [],
+                windZones: [
+                    { x: 500, y: 250, r: 180, angle: 0, strength: 0.6 },
+                    { x: 500, y: 750, r: 180, angle: Math.PI, strength: 0.6 }
+                ],
+                clouds: [],
+                land: [
+                    { x: 150, y: 500, r: 150 },
+                    { x: 850, y: 500, r: 150 },
+                    { x: 500, y: 500, r: 100 }
+                ],
+                maxLength: 2200,
+                instruction: "Используйте воздушные потоки. Попутный ветер экономит заряд!",
+                facts: [
+                    { key: 'wind', anchor: 'wind', index: 0, offsetX: 0, offsetY: -205, title: 'Почему ветер важен?', text: 'Ветер меняет энергозатраты и скорость полета. Попутный поток помогает дрону двигаться быстрее и экономнее, а встречный заставляет сильнее расходовать заряд.' }
+                ],
+                tutorialSteps: [
+                    { target: 'wind', text: "Зона сильного ветра! Попутный поток поможет сэкономить батарею, а встречный — быстро разрядит её." }
+                ]
+            },
+            {
+                // Уровень 4: Облачность (Туман)
+                start: { x: 200, y: 200 },
+                end: { x: 800, y: 800 },
+                targets: [
+                    { x: 700, y: 300, scanned: false },
+                    { x: 300, y: 700, scanned: false },
+                    { x: 500, y: 500, scanned: false }
+                ],
+                obstacles: [
+                    { x: 800, y: 500, radius: 100 },
+                    { x: 200, y: 500, radius: 100 }
+                ],
+                windZones: [],
+                clouds: [
+                    { x: 700, y: 300, r: 250 },
+                    { x: 300, y: 700, r: 250 },
+                    { x: 500, y: 500, r: 200 }
+                ],
+                land: [
+                    { x: 200, y: 200, r: 180 },
+                    { x: 800, y: 800, r: 180 },
+                    { x: 800, y: 500, r: 120 },
+                    { x: 200, y: 500, r: 120 }
+                ],
+                maxLength: 3500,
+                fogPreviewDelay: 4000,
+                instruction: "Облачность мешает сканированию. Свайп по облакам рассеивает их, но расходует заряд.",
+                tutorialSteps: [
+                    { target: 'fog', text: "Густые облака мешают оптическому ДЗЗ. Можно запомнить карту или раздвигать облака свайпом — это расходует заряд дрона." }
+                ]
+            },
+            {
+                // Уровень 5: Финальный вызов
+                start: { x: 100, y: 500 },
+                end: { x: 900, y: 500 },
+                targets: [
+                    { x: 350, y: 200, scanned: false },
+                    { x: 650, y: 800, scanned: false },
+                    { x: 500, y: 500, scanned: false }
+                ],
+                obstacles: [
+                    { x: 350, y: 650, radius: 130 },
+                    { x: 650, y: 350, radius: 130 }
+                ],
+                windZones: [
+                    { x: 500, y: 500, r: 160, angle: Math.PI/2, strength: 0.5 } 
+                ],
+                clouds: [
+                    { x: 350, y: 650, r: 200 },
+                    { x: 650, y: 350, r: 200 }
+                ],
+                land: [
+                    { x: 100, y: 500, r: 160 },
+                    { x: 900, y: 500, r: 160 },
+                    { x: 350, y: 650, r: 150 },
+                    { x: 650, y: 350, r: 150 },
+                    { x: 500, y: 0, r: 200 },
+                    { x: 500, y: 1000, r: 200 }
+                ],
+                maxLength: 4000,
+                fogPreviewDelay: 4300,
+                instruction: "Финал: учитывайте ветер и ООПТ. Облака можно раздвигать свайпом за заряд.",
+                tutorialSteps: []
+            }
+        ];
+
+        let currentLevel = null;
+        let currentTutorialSteps = [];
+        
+        function init() {
+            window.addEventListener('resize', resizeCanvas, { passive: true });
+            window.visualViewport?.addEventListener('resize', resizeCanvas, { passive: true });
+            resizeCanvas();
+
+            // Pointer Events не создают двойные mouse/touch-события и лучше работают на мобильных.
+            canvas.addEventListener('pointerdown', handleStart, { passive: false });
+            canvas.addEventListener('pointermove', handleMove, { passive: false });
+            canvas.addEventListener('pointerup', handleEnd, { passive: false });
+            canvas.addEventListener('pointercancel', handleEnd, { passive: false });
+
+            requestAnimationFrame(renderLoop);
+
+            // «Я готова, присылайте параметры задания».
+            postToHost('DRONE_READY');
+        }
+
+        function getUIReserve() {
+            if (!currentLevel || document.getElementById('uiBar').classList.contains('hidden')) return 0;
+            if (width > height && height < 520) return 62;
+            if (width <= 480) return Math.min(118, Math.max(88, height * 0.17));
+            return Math.min(108, Math.max(76, height * 0.12));
+        }
+
+        function resizeCanvas() {
+            const viewport = window.visualViewport;
+            width = Math.round(viewport?.width || window.innerWidth);
+            height = Math.round(viewport?.height || window.innerHeight);
+
+            // Ограничиваем DPR до 2: картинка остается четкой, а GPU мобильного не перегружается.
+            const dpr = Math.min(window.devicePixelRatio || 1, 2);
+            canvas.width = Math.max(1, Math.round(width * dpr));
+            canvas.height = Math.max(1, Math.round(height * dpr));
+            canvas.style.width = `${width}px`;
+            canvas.style.height = `${height}px`;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+            const uiReserve = getUIReserve();
+            const availableHeight = Math.max(180, height - uiReserve);
+            const scaleX = width / logicalWidth;
+            const scaleY = availableHeight / logicalHeight;
+            scale = Math.max(0.12, Math.min(scaleX, scaleY) * 0.95);
+
+            offsetX = (width - logicalWidth * scale) / 2;
+            offsetY = uiReserve + (availableHeight - logicalHeight * scale) / 2;
+
+            if (state === 'tutorial') requestAnimationFrame(positionCurrentTutorial);
+        }
+
+        function dist(p1, p2) {
+            return Math.hypot(p2.x - p1.x, p2.y - p1.y);
+        }
+
+        function distToSegment(p, v, w) {
+            let l2 = dist(v, w);
+            l2 = l2 * l2;
+            if (l2 == 0) return dist(p, v);
+            let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+            t = Math.max(0, Math.min(1, t));
+            return dist(p, { x: v.x + t * (w.x - v.x), y: v.y + t * (w.y - v.y) });
+        }
+
+        function getLogicalPos(evt) {
+            let x, y;
+            if (evt.touches && evt.touches.length > 0) {
+                x = evt.touches[0].clientX;
+                y = evt.touches[0].clientY;
+            } else if (evt.changedTouches && evt.changedTouches.length > 0) {
+                x = evt.changedTouches[0].clientX;
+                y = evt.changedTouches[0].clientY;
+            } else {
+                x = evt.clientX;
+                y = evt.clientY;
+            }
+            return { x: (x - offsetX) / scale, y: (y - offsetY) / scale };
+        }
+
+        function scheduleInstructionHide(delay = 5000) {
+            clearTimeout(instructionHideTimer);
+            instructionHideTimer = setTimeout(() => {
+                const instruction = document.getElementById('instructionText');
+                instruction.style.opacity = 0;
+            }, delay);
+        }
+
+        async function startGame() {
+            // Внутри новеллы ждём параметры задания: сколько участков облетать.
+            if (IN_IFRAME) {
+                const config = await hostConfigPromise;
+                const wanted = Number(config && config.levels);
+                if (wanted > 0) requiredLevels = Math.min(wanted, levels.length);
+            }
+
+            document.getElementById('menuModal').classList.add('hidden');
+            document.getElementById('uiBar').classList.remove('hidden');
+            loadLevel(0);
+            resizeCanvas();
+        }
+
+        function loadLevel(index, options = {}) {
+            levelSessionId++;
+            clearTimeout(instructionHideTimer);
+            clearTimeout(fogCoverTimer);
+            clearInterval(fogCountdownTimer);
+            fogCoverTimer = null;
+            fogCountdownTimer = null;
+            fogPreviewDeadline = 0;
+            fogPreviewRemaining = 0;
+            currentLevelIndex = index;
+            // Глубокое копирование уровня для сброса состояния
+            currentLevel = JSON.parse(JSON.stringify(levels[index]));
+            currentPath = [];
+            pathLength = 0;
+            energySpent = 0;
+            fogEnergySpent = 0;
+            fogEdgeReveal = 0;
+            fogSwipeLastPos = null;
+            flyState = 'idle';
+            droneDisplayScale = 0.6;
+            droneAngle = -Math.PI/4;
+            currentDroneSpeed = DRONE_SPEED;
+            droneWindLean = 0;
+            cloudsOpacity = 0;
+            cloudsTargetOpacity = 0;
+            
+            updateUI();
+            
+            const instruction = document.getElementById('instructionText');
+            instruction.innerText = currentLevel.instruction;
+            instruction.style.opacity = 1;
+            
+            // Фикс бага: принудительно прячем модалки
+            const winModal = document.getElementById('winModal');
+            winModal.classList.add('hidden');
+            winModal.style.display = 'none'; 
+            
+            const tutorialOverlay = document.getElementById('tutorialOverlay');
+            const tutorialBox = document.getElementById('tutorialBox');
+            tutorialBox.classList.remove('visible');
+            tutorialOverlay.classList.add('hidden');
+            const factModal = document.getElementById('factModal');
+            factModal.classList.add('hidden');
+            openFactKey = null;
+
+            currentLevel.clouds = (currentLevel.clouds || []).map(cloud => ({ ...cloud, clearAmount: 0 }));
+            currentTutorialSteps = options.skipTutorial ? [] : (currentLevel.tutorialSteps || []);
+            resizeCanvas();
+            
+            if (currentTutorialSteps.length > 0) {
+                state = 'tutorial';
+                currentTutorialStep = 0;
+
+                if (hasFog()) {
+                    cloudsOpacity = 0.18;
+                    cloudsTargetOpacity = 0.18;
+                }
+
+                showTutorialStep();
+            } else {
+                state = 'playing';
+                if (hasFog()) {
+                    cloudsOpacity = 0;
+                    cloudsTargetOpacity = 0;
+                    beginFogPreview();
+                } else {
+                    scheduleInstructionHide(5000);
+                }
+            }
+        }
+
+        function getTutorialTargetPos(step) {
+            let targetPos = {x: 500, y: 500};
+            if (step.target === 'start') targetPos = currentLevel.start;
+            else if (step.target === 'pollution') targetPos = currentLevel.targets[0];
+            else if (step.target === 'end') targetPos = currentLevel.end;
+            else if (step.target === 'wind' && currentLevel.windZones?.length) targetPos = currentLevel.windZones[0];
+            else if (step.target === 'fog' && currentLevel.clouds?.length) targetPos = currentLevel.clouds[0];
+            return targetPos;
+        }
+
+        function positionCurrentTutorial() {
+            if (state !== 'tutorial' || currentTutorialStep >= currentTutorialSteps.length) return;
+            const popup = document.getElementById('tutorialBox');
+            const step = currentTutorialSteps[currentTutorialStep];
+            const targetPos = getTutorialTargetPos(step);
+            const targetX = targetPos.x * scale + offsetX;
+            const targetY = targetPos.y * scale + offsetY;
+            const viewportW = window.visualViewport?.width || window.innerWidth;
+            const viewportH = window.visualViewport?.height || window.innerHeight;
+            const margin = 12;
+            const gap = 18;
+
+            popup.classList.remove('placement-above', 'placement-below', 'placement-floating');
+            popup.classList.toggle('compact', viewportH < 560 || viewportW < 380);
+            popup.style.removeProperty('max-height');
+            const uiRect = document.getElementById('statusPanel')?.getBoundingClientRect();
+            const minTop = Math.max(margin, uiRect?.bottom ? uiRect.bottom + 8 : margin);
+            const popupW = popup.offsetWidth;
+            const popupH = popup.offsetHeight;
+            const maxTop = Math.max(minTop, viewportH - popupH - margin);
+
+            let placement = 'placement-floating';
+            let top;
+            const aboveTop = targetY - popupH - gap;
+            const belowTop = targetY + gap;
+
+            if (aboveTop >= minTop) {
+                top = aboveTop;
+                placement = 'placement-above';
+            } else if (belowTop <= maxTop) {
+                top = belowTop;
+                placement = 'placement-below';
+            } else {
+                top = Math.max(minTop, Math.min(maxTop, targetY - popupH / 2));
+            }
+
+            let left = targetX - popupW / 2;
+            left = Math.max(margin, Math.min(viewportW - popupW - margin, left));
+            const arrowLeft = Math.max(18, Math.min(popupW - 18, targetX - left));
+
+            popup.classList.add(placement);
+            popup.style.left = `${Math.round(left)}px`;
+            popup.style.top = `${Math.round(top)}px`;
+            popup.style.setProperty('--arrow-left', `${Math.round(arrowLeft)}px`);
+        }
+
+        function showTutorialStep() {
+            const overlay = document.getElementById('tutorialOverlay');
+            const popup = document.getElementById('tutorialBox');
+
+            if (currentTutorialStep >= currentTutorialSteps.length) {
+                popup.classList.remove('visible');
+                setTimeout(() => { overlay.classList.add('hidden'); }, 220);
+                state = 'playing';
+                if (hasFog()) {
+                    cloudsTargetOpacity = 0.03;
+                    beginFogPreview();
+                } else {
+                    scheduleInstructionHide(5000);
+                }
+                return;
+            }
+
+            popup.classList.remove('visible');
+            overlay.classList.remove('hidden');
+            const step = currentTutorialSteps[currentTutorialStep];
+            document.getElementById('tutorialText').innerText = step.text;
+
+            requestAnimationFrame(() => {
+                positionCurrentTutorial();
+                requestAnimationFrame(() => popup.classList.add('visible'));
+            });
+        }
+
+        function nextTutorialStep() {
+            let popup = document.getElementById('tutorialBox');
+            popup.classList.remove('visible');
+            setTimeout(() => {
+                currentTutorialStep++;
+                showTutorialStep();
+            }, 300);
+        }
+
+        // Логика расчета стоимости пути (вода vs суша)
+        function isOverLand(p) {
+            if (!currentLevel || !currentLevel.land) return false;
+            return currentLevel.land.some(l => dist(p, l) < l.r + 5);
+        }
+
+        function getWindMultiplier(pos, lastPos) {
+            if (!currentLevel.windZones || currentLevel.windZones.length === 0) return 1.0;
+            let mult = 1.0;
+            for (let wind of currentLevel.windZones) {
+                if (dist(pos, wind) < wind.r) {
+                    let dx = pos.x - lastPos.x;
+                    let dy = pos.y - lastPos.y;
+                    let len = Math.hypot(dx, dy);
+                    if (len > 0) {
+                        // Скалярное произведение вектора движения на вектор ветра
+                        let dot = (dx/len) * Math.cos(wind.angle) + (dy/len) * Math.sin(wind.angle);
+                        mult *= (1 - dot * wind.strength); 
+                    }
+                }
+            }
+            return mult;
+        }
+
+        function hasFog() {
+            return Boolean(currentLevel?.clouds?.length);
+        }
+
+        function getCloudAtPos(pos) {
+            if (!hasFog()) return null;
+            return currentLevel.clouds.find(cloud => dist(pos, cloud) <= cloud.r * 1.08 && (cloud.clearAmount || 0) < 0.98) || null;
+        }
+
+        function clearFogAt(pos, movementDistance) {
+            if (!hasFog() || movementDistance <= 0) return false;
+            const cloud = getCloudAtPos(pos);
+            if (!cloud) return false;
+
+            const clearDelta = movementDistance / Math.max(720, cloud.r * 3.6);
+            cloud.clearAmount = Math.min(1, (cloud.clearAmount || 0) + clearDelta);
+            const cost = movementDistance * FOG_CLEAR_COST;
+            fogEnergySpent += cost;
+            energySpent += cost;
+            updateUI();
+            return true;
+        }
+
+        function applyFogAssist() {
+            if (!hasFog()) return false;
+            fogEdgeReveal = Math.min(0.72, fogEdgeReveal + 0.17);
+            const instruction = document.getElementById('instructionText');
+            instruction.innerText = "Подсказка: после ошибки туман немного отступил слева. Можно также раздвигать облака свайпом за заряд.";
+            instruction.style.opacity = 1;
+            scheduleInstructionHide(4200);
+            return true;
+        }
+
+        function beginFogPreview(delayOverride = null) {
+            if (!hasFog()) return;
+            clearTimeout(fogCoverTimer);
+            clearInterval(fogCountdownTimer);
+            fogCoverTimer = null;
+            fogCountdownTimer = null;
+
+            const session = levelSessionId;
+            const delay = delayOverride ?? currentLevel.fogPreviewDelay ?? DEFAULT_FOG_PREVIEW_DELAY;
+            fogPreviewRemaining = delay;
+            fogPreviewDeadline = performance.now() + delay;
+            const instruction = document.getElementById('instructionText');
+
+            const updateFogCountdown = () => {
+                if (session !== levelSessionId || !fogPreviewDeadline) return;
+                const remainingMs = Math.max(0, fogPreviewDeadline - performance.now());
+                fogPreviewRemaining = remainingMs;
+                const seconds = Math.max(0, Math.ceil(remainingMs / 1000));
+                instruction.innerText = seconds > 0
+                    ? `Запомните цели и препятствия — облака закроют карту через ${seconds} сек.`
+                    : 'Облака закрывают карту…';
+                instruction.style.opacity = 1;
+            };
+
+            updateFogCountdown();
+            fogCountdownTimer = setInterval(updateFogCountdown, 100);
+
+            fogCoverTimer = setTimeout(() => {
+                if (session !== levelSessionId) return;
+                clearInterval(fogCountdownTimer);
+                fogCountdownTimer = null;
+                fogCoverTimer = null;
+                fogPreviewRemaining = 0;
+                fogPreviewDeadline = 0;
+                cloudsTargetOpacity = 1.0;
+                instruction.innerText = currentLevel.instruction;
+                instruction.style.opacity = 1;
+                scheduleInstructionHide(4200);
+            }, delay);
+        }
+
+        function getFactAnchorPosition(fact) {
+            if (!fact || !currentLevel) return null;
+            let base = null;
+            const idx = fact.index || 0;
+            if (fact.anchor === 'target') base = currentLevel.targets?.[idx];
+            else if (fact.anchor === 'obstacle') base = currentLevel.obstacles?.[idx];
+            else if (fact.anchor === 'wind') base = currentLevel.windZones?.[idx];
+            else if (fact.anchor === 'cloud') base = currentLevel.clouds?.[idx];
+            else if (fact.anchor === 'start') base = currentLevel.start;
+            else if (fact.anchor === 'end') base = currentLevel.end;
+            if (!base) return null;
+            return { x: base.x + (fact.offsetX || 0), y: base.y + (fact.offsetY || 0) };
+        }
+
+        function getFactAtPos(pos) {
+            if (!currentLevel?.facts?.length || state !== 'playing') return null;
+            const radius = getInteractionRadius(34, 32);
+            for (const fact of currentLevel.facts) {
+                const p = getFactAnchorPosition(fact);
+                if (p && dist(pos, p) <= radius) return fact;
+            }
+            return null;
+        }
+
+        function showFact(fact) {
+            if (!fact) return;
+            // Если игрок читает факт во время фазы запоминания, таймер тумана ставится на паузу.
+            if (hasFog() && fogCoverTimer && fogPreviewDeadline > 0) {
+                fogPreviewRemaining = Math.max(500, fogPreviewDeadline - performance.now());
+                clearTimeout(fogCoverTimer);
+                clearInterval(fogCountdownTimer);
+                fogCoverTimer = null;
+                fogCountdownTimer = null;
+            }
+
+            openFactKey = `${currentLevelIndex}:${fact.key}`;
+            seenFactKeys.add(openFactKey);
+            document.getElementById('factTitle').innerText = fact.title;
+            document.getElementById('factText').innerText = fact.text;
+            document.getElementById('factModal').classList.remove('hidden');
+            state = 'fact';
+        }
+
+        function closeFact() {
+            document.getElementById('factModal').classList.add('hidden');
+            openFactKey = null;
+            if (currentLevel && state === 'fact') {
+                state = 'playing';
+                if (hasFog() && fogPreviewRemaining > 0 && cloudsTargetOpacity < 1) {
+                    const remaining = fogPreviewRemaining;
+                    fogPreviewRemaining = 0;
+                    beginFogPreview(remaining);
+                }
+            }
+        }
+
+        function getInteractionRadius(baseLogical, minCssPx = 26) {
+            return Math.max(baseLogical, minCssPx / Math.max(scale, 0.01));
+        }
+
+        function updateUI() {
+            document.getElementById('levelIndicator').innerText = currentLevelIndex + 1;
+            
+            if (energySpent === 0) {
+                activeStars = 5;
+            } else {
+                let ratio = energySpent / currentLevel.maxLength;
+                if (ratio <= 1.0) activeStars = 5;
+                else if (ratio <= 1.25) activeStars = 4;
+                else if (ratio <= 1.5) activeStars = 3;
+                else if (ratio <= 1.75) activeStars = 2;
+                else activeStars = 1;
+            }
+
+            let starsHTML = '';
+            const starSvg = `<svg class="w-5 h-5 sm:w-6 sm:h-6 drop-shadow-md" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>`;
+            
+            for(let i=0; i<5; i++) {
+                starsHTML += `<div class="text-amber-400 star-icon ${i >= activeStars ? 'star-lost' : ''}">${starSvg}</div>`;
+            }
+            document.getElementById('starContainer').innerHTML = starsHTML;
+
+            let barRatio = Math.max(0, 1 - (energySpent / (currentLevel.maxLength * 2.2)));
+            let bar = document.getElementById('energyBar');
+            bar.style.width = `${barRatio * 100}%`;
+            
+            if (activeStars >= 4) bar.className = "h-full w-full transition-all duration-300 bg-emerald-400 shadow-[0_0_12px_#34d399]";
+            else if (activeStars >= 2) bar.className = "h-full w-full transition-all duration-300 bg-amber-400 shadow-[0_0_12px_#fbbf24]";
+            else bar.className = "h-full w-full transition-all duration-300 bg-red-500 shadow-[0_0_12px_#ef4444]";
+        }
+
+        function handleStart(e) {
+            if (state !== 'playing' && state !== 'drawing') return;
+            if (e.cancelable) e.preventDefault();
+            if (activePointerId !== null && e.pointerId !== undefined && e.pointerId !== activePointerId) return;
+
+            const pos = getLogicalPos(e);
+
+            if (state === 'playing') {
+                const fact = getFactAtPos(pos);
+                if (fact) {
+                    showFact(fact);
+                    return;
+                }
+            }
+
+            if (e.pointerId !== undefined) {
+                activePointerId = e.pointerId;
+                canvas.setPointerCapture?.(e.pointerId);
+            }
+
+            const startRadius = getInteractionRadius(BASE_RADIUS * 2, 30);
+
+            if (dist(pos, currentLevel.start) < startRadius) {
+                state = 'drawing';
+                currentPath = [currentLevel.start];
+                pathLength = 0;
+                energySpent = fogEnergySpent;
+                currentLevel.targets.forEach(t => t.scanned = false);
+                updateUI();
+                return;
+            }
+
+            if (state === 'playing' && getCloudAtPos(pos)) {
+                state = 'clearing';
+                fogSwipeLastPos = pos;
+            }
+        }
+
+        function handleMove(e) {
+            if (activePointerId !== null && e.pointerId !== undefined && e.pointerId !== activePointerId) return;
+            if (state !== 'drawing' && state !== 'clearing') return;
+            if (e.cancelable) e.preventDefault();
+
+            const pos = getLogicalPos(e);
+
+            if (state === 'clearing') {
+                if (!fogSwipeLastPos) fogSwipeLastPos = pos;
+                const movementDistance = dist(fogSwipeLastPos, pos);
+                if (movementDistance > 4) {
+                    clearFogAt(pos, movementDistance);
+                    fogSwipeLastPos = pos;
+                }
+                return;
+            }
+
+            const lastPos = currentPath[currentPath.length - 1];
+            if (dist(pos, lastPos) > 10) {
+                let hitObstacle = false;
+                for (const obs of currentLevel.obstacles) {
+                    if (distToSegment(obs, lastPos, pos) < obs.radius) {
+                        hitObstacle = true;
+                        break;
+                    }
+                }
+
+                if (hitObstacle) {
+                    showError("Зона ООПТ! Пролетать над этой зоной запрещено.");
+                    state = 'playing';
+                    currentPath = [];
+                    pathLength = 0;
+                    energySpent = fogEnergySpent;
+                    updateUI();
+                    return;
+                }
+
+                currentPath.push(pos);
+                const segmentDist = dist(lastPos, pos);
+                pathLength += segmentDist;
+
+                const windMult = getWindMultiplier(pos, lastPos);
+                energySpent += (isOverLand(pos) ? segmentDist * LAND_ENERGY_MULTIPLIER : segmentDist) * windMult;
+                updateUI();
+            }
+        }
+
+        function handleEnd(e) {
+            if (activePointerId !== null && e.pointerId !== undefined && e.pointerId !== activePointerId) return;
+            if (e.cancelable) e.preventDefault();
+
+            if (e.pointerId !== undefined) {
+                try { canvas.releasePointerCapture?.(e.pointerId); } catch (_) {}
+                activePointerId = null;
+            }
+
+            if (state === 'clearing') {
+                state = 'playing';
+                fogSwipeLastPos = null;
+                return;
+            }
+
+            if (state !== 'drawing') return;
+            const lastPos = currentPath[currentPath.length - 1];
+            const endRadius = getInteractionRadius(BASE_RADIUS * 2, 30);
+
+            if (dist(lastPos, currentLevel.end) < endRadius) {
+                const segmentDist = dist(lastPos, currentLevel.end);
+                pathLength += segmentDist;
+
+                const windMult = getWindMultiplier(currentLevel.end, lastPos);
+                energySpent += (isOverLand(currentLevel.end) ? segmentDist * LAND_ENERGY_MULTIPLIER : segmentDist) * windMult;
+
+                currentPath.push(currentLevel.end);
+                validateRoute();
+            } else {
+                currentPath = [];
+                pathLength = 0;
+                energySpent = fogEnergySpent;
+                state = 'playing';
+                updateUI();
+            }
+        }
+
+        function validateRoute() {
+            let allScanned = true;
+            
+            currentLevel.targets.forEach(target => {
+                let hit = false;
+                for (let i = 0; i < currentPath.length - 1; i++) {
+                    if (distToSegment(target, currentPath[i], currentPath[i+1]) < TARGET_RADIUS) {
+                        hit = true;
+                        break;
+                    }
+                }
+                target.scanned = hit;
+                if (!hit) allScanned = false;
+            });
+
+            if (!allScanned) {
+                showError("Не все зоны загрязнений отсняты для ДЗЗ!");
+                state = 'playing';
+                currentPath = [];
+                pathLength = 0;
+                energySpent = fogEnergySpent;
+                updateUI();
+            } else {
+                state = 'flying';
+                flyState = 'takeoff';
+                takeoffTimer = 0;
+                animationProgress = 0;
+                currentDroneSpeed = DRONE_SPEED;
+                droneWindLean = 0;
+                dronePos = { ...currentPath[0] };
+                
+                if(currentPath.length > 1) {
+                    droneAngle = Math.atan2(currentPath[1].y - currentPath[0].y, currentPath[1].x - currentPath[0].x);
+                }
+            }
+        }
+
+        function showError(msg) {
+            if (activePointerId !== null) {
+                try { canvas.releasePointerCapture?.(activePointerId); } catch (_) {}
+                activePointerId = null;
+            }
+            fogSwipeLastPos = null;
+            document.getElementById('errorMessage').innerText = msg;
+            const fogHelped = applyFogAssist();
+            const hint = document.getElementById('errorHint');
+            if (fogHelped) {
+                hint.innerText = "Туман немного отступил с левого края. Дополнительно его можно рассеивать свайпом, расходуя батарею.";
+                hint.classList.remove('hidden');
+            } else {
+                hint.innerText = '';
+                hint.classList.add('hidden');
+            }
+            const errModal = document.getElementById('errorModal');
+            errModal.classList.remove('hidden');
+            errModal.style.display = 'flex';
+        }
+
+        function closeError() {
+            const errModal = document.getElementById('errorModal');
+            errModal.classList.add('hidden');
+            errModal.style.display = 'none';
+        }
+
+        function restartLevel() {
+            closeError();
+            closeFact();
+            const winModal = document.getElementById('winModal');
+            winModal.classList.add('hidden');
+            winModal.style.display = 'none';
+            activePointerId = null;
+            loadLevel(currentLevelIndex, { skipTutorial: true });
+        }
+
+        function renderLoop(timestamp = performance.now()) {
+            const deltaTime = Math.min(40, lastFrameTime ? timestamp - lastFrameTime : 16.67);
+            lastFrameTime = timestamp;
+            drawWater(Date.now());
+
+            if (currentLevel) {
+                ctx.save();
+                ctx.translate(offsetX, offsetY);
+                ctx.scale(scale, scale);
+
+                drawLand();
+
+                if (currentLevel.windZones) {
+                    currentLevel.windZones.forEach(wind => drawWindZone(wind));
+                }
+
+                currentLevel.obstacles.forEach(obs => drawOOPT(obs.x, obs.y, obs.radius));
+                currentLevel.targets.forEach(t => drawPollution(t.x, t.y, t.scanned));
+
+                drawCloudsLayer();
+                drawFactBeacons();
+
+                drawStartPad(currentLevel.start.x, currentLevel.start.y);
+                drawEndPad(currentLevel.end.x, currentLevel.end.y);
+
+                if (currentPath.length > 0) drawPath();
+
+                if (state === 'flying') {
+                    if (flyState === 'takeoff') {
+                        takeoffTimer += deltaTime;
+                        const takeoffRatio = Math.min(1, takeoffTimer / TAKEOFF_DURATION);
+                        droneDisplayScale = 0.6 + takeoffRatio * 0.6;
+                        if (takeoffRatio >= 1) flyState = 'cruising';
+                        drawDrone(dronePos.x, dronePos.y, droneAngle, droneDisplayScale, droneWindLean);
+                    } else if (flyState === 'cruising') {
+                        animateDroneLogic(deltaTime);
+                        drawDrone(dronePos.x, dronePos.y, droneAngle, droneDisplayScale, droneWindLean);
+                    } else if (flyState === 'landing') {
+                        takeoffTimer -= deltaTime;
+                        const landingRatio = Math.max(0, takeoffTimer / TAKEOFF_DURATION);
+                        droneDisplayScale = 0.6 + landingRatio * 0.6;
+                        droneWindLean *= 0.9;
+                        if (takeoffTimer <= 0) {
+                            state = 'level_complete';
+                            const completedSession = levelSessionId;
+                            setTimeout(() => {
+                                if (levelSessionId === completedSession && state === 'level_complete') showWinScreen();
+                            }, 350);
+                        }
+                        drawDrone(dronePos.x, dronePos.y, droneAngle, droneDisplayScale, droneWindLean);
+                    }
+                } else {
+                    drawDrone(currentLevel.start.x, currentLevel.start.y, droneAngle, 0.6, 0);
+
+                    if (state === 'playing' || state === 'drawing' || state === 'clearing' || state === 'tutorial') {
+                        const pulseTime = Date.now() / 150;
+                        const radiusOsc = BASE_RADIUS + Math.sin(pulseTime) * 10;
+                        ctx.beginPath();
+                        ctx.arc(currentLevel.start.x, currentLevel.start.y, radiusOsc, 0, Math.PI * 2);
+                        ctx.strokeStyle = 'rgba(14, 165, 233, 0.6)';
+                        ctx.lineWidth = 3;
+                        ctx.stroke();
+                    }
+                }
+
+                ctx.restore();
+            }
+
+            requestAnimationFrame(renderLoop);
+        }
+
+        function drawWater(time) {
+            let grad = ctx.createLinearGradient(0, 0, width, height);
+            grad.addColorStop(0, '#0284c7'); 
+            grad.addColorStop(1, '#1e3a8a'); 
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, width, height);
+
+            ctx.save();
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for (let y = -50; y < height + 50; y += 40) {
+                ctx.moveTo(0, y);
+                for (let x = 0; x <= width; x += 60) {
+                    let wave = Math.sin(x * 0.015 + time * 0.001 + y * 0.05) * 15;
+                    ctx.lineTo(x, y + wave);
+                }
+            }
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        function drawWindZone(wind) {
+            ctx.save();
+            ctx.translate(wind.x, wind.y);
+            
+            ctx.beginPath();
+            ctx.arc(0, 0, wind.r, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
+            ctx.fill();
+            ctx.clip();
+            
+            ctx.rotate(wind.angle);
+            let time = Date.now() / 15;
+            
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+            
+            for (let i = -wind.r; i <= wind.r; i += 40) {
+                let xOffset = ((time + i * 2.5) % (wind.r * 2.5)) - wind.r * 1.25;
+                ctx.beginPath();
+                ctx.moveTo(xOffset, i);
+                ctx.lineTo(xOffset + 30, i);
+                
+                ctx.lineTo(xOffset + 22, i - 6);
+                ctx.moveTo(xOffset + 30, i);
+                ctx.lineTo(xOffset + 22, i + 6);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        function drawFactBeacons() {
+            if (!currentLevel?.facts?.length || !['playing', 'drawing', 'clearing'].includes(state)) return;
+            const t = Date.now() / 420;
+
+            currentLevel.facts.forEach(fact => {
+                const p = getFactAnchorPosition(fact);
+                if (!p) return;
+                const seen = seenFactKeys.has(`${currentLevelIndex}:${fact.key}`);
+                const pulse = seen ? 0 : (Math.sin(t) + 1) * 0.5;
+
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.globalAlpha = seen ? 0.48 : 1;
+
+                if (!seen) {
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 27 + pulse * 7, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(250, 204, 21, ${0.08 + pulse * 0.08})`;
+                    ctx.fill();
+                }
+
+                ctx.beginPath();
+                ctx.arc(0, -5, 14, 0, Math.PI * 2);
+                ctx.fillStyle = '#fde047';
+                ctx.fill();
+                ctx.lineWidth = 2.5;
+                ctx.strokeStyle = '#92400e';
+                ctx.stroke();
+
+                ctx.fillStyle = '#f8fafc';
+                ctx.fillRect(-7, 8, 14, 8);
+                ctx.beginPath();
+                ctx.moveTo(-6, 19); ctx.lineTo(6, 19);
+                ctx.strokeStyle = '#f8fafc';
+                ctx.lineWidth = 3;
+                ctx.lineCap = 'round';
+                ctx.stroke();
+
+                if (!seen) {
+                    ctx.strokeStyle = 'rgba(254, 240, 138, 0.95)';
+                    ctx.lineWidth = 2.5;
+                    for (let i = 0; i < 6; i++) {
+                        const a = i * Math.PI / 3 - Math.PI / 2;
+                        ctx.beginPath();
+                        ctx.moveTo(Math.cos(a) * 24, Math.sin(a) * 24 - 3);
+                        ctx.lineTo(Math.cos(a) * 31, Math.sin(a) * 31 - 3);
+                        ctx.stroke();
+                    }
+                } else {
+                    ctx.fillStyle = '#0f172a';
+                    ctx.font = '900 12px Inter';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('✓', 0, -3);
+                }
+
+                ctx.restore();
+            });
+        }
+
+        function drawCloudsLayer() {
+            if (!currentLevel.clouds || currentLevel.clouds.length === 0) return;
+
+            if (cloudsOpacity < cloudsTargetOpacity) cloudsOpacity = Math.min(cloudsTargetOpacity, cloudsOpacity + 0.015);
+            if (cloudsOpacity > cloudsTargetOpacity) cloudsOpacity = Math.max(cloudsTargetOpacity, cloudsOpacity - 0.015);
+            if (cloudsOpacity <= 0) return;
+
+            const time = Date.now() / 3000;
+            const revealFront = fogEdgeReveal * logicalWidth;
+            const revealSoftness = 220;
+
+            currentLevel.clouds.forEach(cloud => {
+                const manualClear = Math.max(0, Math.min(1, cloud.clearAmount || 0));
+                let edgeFactor = 1;
+                if (fogEdgeReveal > 0) {
+                    const transition = (cloud.x - revealFront) / revealSoftness + 0.5;
+                    edgeFactor = Math.max(0.08, Math.min(1, transition));
+                }
+
+                const cloudAlpha = cloudsOpacity * (1 - manualClear) * edgeFactor;
+                if (cloudAlpha <= 0.015) return;
+
+                ctx.save();
+                ctx.globalAlpha = cloudAlpha;
+                drawOrganicShape(cloud.x + Math.sin(time)*15, cloud.y + Math.cos(time)*15, cloud.r, 25, cloud.x, 'rgba(241, 245, 249, 0.95)');
+                drawOrganicShape(cloud.x + Math.sin(time*1.2)*8, cloud.y + Math.cos(time*0.8)*8, cloud.r - 25, 20, cloud.y, 'rgba(255, 255, 255, 1)');
+                ctx.restore();
+            });
+        }
+
+        // Процедурная органичная форма
+        function drawOrganicShape(x, y, baseRadius, noiseAmplitude, seed, color) {
+            ctx.beginPath();
+            let points = 45;
+            for(let i=0; i<=points; i++) {
+                let angle = (i/points) * Math.PI * 2;
+                let noise = Math.sin(angle * 4 + seed) + Math.cos(angle * 5 + seed * 1.3) + Math.sin(angle * 2 - seed);
+                let r = baseRadius + noise * noiseAmplitude;
+                let px = x + Math.cos(angle) * r;
+                let py = y + Math.sin(angle) * r;
+                if (i===0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.fillStyle = color;
+            ctx.fill();
+        }
+
+        function drawLand() {
+            if (!currentLevel || !currentLevel.land) return;
+            
+            currentLevel.land.forEach(l => {
+                drawOrganicShape(l.x, l.y, l.r + 18, 12, l.x + l.y, '#fde047');
+            });
+            currentLevel.land.forEach(l => {
+                drawOrganicShape(l.x, l.y, l.r, 8, l.x - l.y, '#4ade80');
+            });
+            currentLevel.land.forEach(l => {
+                drawOrganicShape(l.x, l.y, l.r - 15, 10, l.y * l.x, '#22c55e');
+            });
+        }
+
+        function drawStartPad(x, y) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.beginPath();
+            ctx.arc(0, 0, BASE_RADIUS, 0, Math.PI * 2);
+            ctx.fillStyle = '#334155'; 
+            ctx.fill();
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = '#0ea5e9';
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.arc(0, 0, BASE_RADIUS - 12, 0, Math.PI * 2);
+            ctx.setLineDash([8, 8]);
+            ctx.strokeStyle = 'rgba(14, 165, 233, 0.5)';
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        function drawEndPad(x, y) {
+            ctx.save();
+            ctx.translate(x, y);
+            
+            ctx.beginPath();
+            ctx.arc(0, 0, BASE_RADIUS, 0, Math.PI * 2);
+            ctx.fillStyle = '#64748b'; 
+            ctx.fill();
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = '#94a3b8';
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(0, 0, BASE_RADIUS - 8, 0, Math.PI * 2);
+            ctx.fillStyle = '#10b981'; 
+            ctx.fill();
+
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 32px Inter';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('H', 0, 2);
+            
+            let blink = (Date.now() % 1200 < 600) ? 1 : 0.4;
+            ctx.beginPath();
+            ctx.arc(-BASE_RADIUS+8, -BASE_RADIUS+8, 5, 0, Math.PI*2);
+            ctx.fillStyle = `rgba(239, 68, 68, ${blink})`;
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function drawOOPT(x, y, radius) {
+            ctx.save();
+            ctx.translate(x, y);
+            
+            drawOrganicShape(0, 0, radius - 5, 8, x+y, '#4ade80'); 
+            drawOrganicShape(0, 0, radius - 15, 6, x*y, '#22c55e');
+            
+            ctx.fillStyle = '#38bdf8'; 
+            ctx.beginPath();
+            ctx.ellipse(-radius*0.25, radius*0.15, radius*0.35, radius*0.2, Math.PI/6, 0, Math.PI*2);
+            ctx.fill();
+
+            function drawPine(px, py, scale) {
+                ctx.save();
+                ctx.translate(px, py);
+                ctx.scale(scale, scale);
+                
+                ctx.fillStyle = '#78350f'; 
+                ctx.fillRect(-3, 0, 6, 12);
+                
+                ctx.fillStyle = '#14532d'; 
+                ctx.beginPath(); ctx.moveTo(0, -10); ctx.lineTo(-12, 4); ctx.lineTo(12, 4); ctx.fill();
+                ctx.beginPath(); ctx.moveTo(0, -20); ctx.lineTo(-10, -2); ctx.lineTo(10, -2); ctx.fill();
+                ctx.beginPath(); ctx.moveTo(0, -30); ctx.lineTo(-8, -10); ctx.lineTo(8, -10); ctx.fill();
+                
+                ctx.restore();
+            }
+
+            drawPine(radius*0.2, -radius*0.2, 1.2);
+            drawPine(radius*0.45, 0, 0.9);
+            drawPine(-radius*0.1, -radius*0.35, 1.0);
+            drawPine(radius*0.1, radius*0.3, 0.8);
+
+            let pulse = Math.sin(Date.now() / 400) * 3;
+            ctx.beginPath();
+            ctx.arc(0, 0, radius + pulse, 0, Math.PI * 2);
+            ctx.lineWidth = 3;
+            ctx.setLineDash([10, 10]);
+            ctx.strokeStyle = 'rgba(244, 63, 94, 0.8)'; 
+            ctx.stroke();
+            
+            ctx.translate(0, -radius*0.8);
+            
+            ctx.fillStyle = '#78350f';
+            ctx.fillRect(-3, 0, 6, 25);
+            
+            ctx.fillStyle = '#b45309';
+            ctx.shadowColor = 'rgba(0,0,0,0.3)';
+            ctx.shadowBlur = 4;
+            ctx.shadowOffsetY = 2;
+            ctx.fillRect(-22, -12, 44, 20);
+            ctx.shadowColor = 'transparent';
+            
+            ctx.fillStyle = '#fef3c7';
+            ctx.font = 'bold 12px Inter';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('ООПТ', 0, -1);
+
+            ctx.restore();
+        }
+
+        function drawPollution(x, y, scanned) {
+            ctx.save();
+            ctx.translate(x, y);
+            
+            drawOrganicShape(0, 0, TARGET_RADIUS - 5, 6, x*y, scanned ? 'rgba(16, 185, 129, 0.4)' : 'rgba(245, 158, 11, 0.6)');
+            
+            ctx.beginPath();
+            let points = 20;
+            for (let i = 0; i <= points; i++) {
+                let angle = (i / points) * Math.PI * 2;
+                let noise = Math.sin(angle * 4 + x) + Math.cos(angle * 5 + y);
+                let r = TARGET_RADIUS - 5 + noise * 6;
+                let px = Math.cos(angle) * r;
+                let py = Math.sin(angle) * r;
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.strokeStyle = scanned ? '#10b981' : '#f59e0b';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            let scanRot = Date.now() / 1500;
+            ctx.rotate(scanRot);
+            ctx.beginPath();
+            let rOut = TARGET_RADIUS + 6;
+            for(let i=0; i<4; i++) {
+                ctx.rotate(Math.PI / 2);
+                ctx.moveTo(rOut, rOut - 15);
+                ctx.lineTo(rOut, rOut);
+                ctx.lineTo(rOut - 15, rOut);
+            }
+            ctx.strokeStyle = scanned ? 'rgba(16, 185, 129, 0.9)' : 'rgba(245, 158, 11, 0.9)';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        function drawPath() {
+            ctx.beginPath();
+            ctx.moveTo(currentPath[0].x, currentPath[0].y);
+            
+            if (currentPath.length < 3) {
+                ctx.lineTo(currentPath[currentPath.length - 1].x, currentPath[currentPath.length - 1].y);
+            } else {
+                // Идеальное сглаживание Безье
+                for (let i = 1; i < currentPath.length - 1; i++) {
+                    let xc = (currentPath[i].x + currentPath[i + 1].x) / 2;
+                    let yc = (currentPath[i].y + currentPath[i + 1].y) / 2;
+                    ctx.quadraticCurveTo(currentPath[i].x, currentPath[i].y, xc, yc);
+                }
+                ctx.lineTo(currentPath[currentPath.length - 1].x, currentPath[currentPath.length - 1].y);
+            }
+            
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+            ctx.lineWidth = 8;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+            ctx.shadowBlur = 6;
+            ctx.stroke();
+            ctx.shadowBlur = 0; 
+            
+            ctx.strokeStyle = '#0ea5e9';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+        }
+
+        function drawDrone(x, y, angle, dScale, windLean = 0) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(angle);
+            ctx.scale(dScale, dScale);
+
+            const lean = Math.max(-0.65, Math.min(0.65, windLean));
+            ctx.translate(-lean * 5, 0);
+            ctx.transform(1 - Math.abs(lean) * 0.07, lean * 0.055, 0, 1, 0, 0);
+            
+            let shadowOffset = (dScale - 0.6) * 30 + 5;
+            const windShadowShift = lean * 8;
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+            ctx.shadowBlur = 20;
+            ctx.shadowOffsetX = -shadowOffset - windShadowShift;
+            ctx.shadowOffsetY = shadowOffset;
+
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 24, 16, 0, 0, Math.PI * 2);
+            ctx.fillStyle = '#f8fafc'; 
+            ctx.fill();
+            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.arc(14, 0, 5, 0, Math.PI*2);
+            ctx.fillStyle = '#0f172a';
+            ctx.fill();
+            ctx.strokeStyle = '#38bdf8'; 
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            ctx.shadowColor = 'transparent'; 
+
+            const armLen = 28;
+            const rotorOffsets = [
+                {a: Math.PI/4, c: '#94a3b8'},    
+                {a: -Math.PI/4, c: '#ef4444'},   
+                {a: 3*Math.PI/4, c: '#94a3b8'},  
+                {a: -3*Math.PI/4, c: '#ef4444'}  
+            ];
+
+            let isEnginesOn = (state === 'flying');
+            
+            rotorOffsets.forEach(pos => {
+                let rx = Math.cos(pos.a) * armLen;
+                let ry = Math.sin(pos.a) * armLen;
+                
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(rx, ry);
+                ctx.strokeStyle = '#334155';
+                ctx.lineWidth = 5;
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.arc(rx, ry, 9, 0, Math.PI * 2);
+                ctx.fillStyle = pos.c;
+                ctx.fill();
+                
+                if (isEnginesOn) {
+                    let spin = (Date.now() % 360) / 4; 
+                    ctx.beginPath();
+                    ctx.moveTo(rx - Math.cos(spin)*14, ry - Math.sin(spin)*14);
+                    ctx.lineTo(rx + Math.cos(spin)*14, ry + Math.sin(spin)*14);
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+                    ctx.lineWidth = 5;
+                    ctx.stroke();
+                }
+            });
+
+            ctx.restore();
+        }
+
+        function getWindFlightInfluence(pos, movementAngle) {
+            if (!currentLevel.windZones?.length) return 0;
+            let influence = 0;
+            for (const wind of currentLevel.windZones) {
+                if (dist(pos, wind) < wind.r) {
+                    const dot = Math.cos(movementAngle - wind.angle);
+                    influence += dot * wind.strength;
+                }
+            }
+            return Math.max(-0.85, Math.min(0.85, influence));
+        }
+
+        function animateDroneLogic(deltaTime) {
+            let currentDistInPath = 0;
+            let segmentFound = false;
+            let windInfluence = 0;
+
+            for (let i = 0; i < currentPath.length - 1; i++) {
+                const d = dist(currentPath[i], currentPath[i+1]);
+                if (animationProgress >= currentDistInPath && animationProgress < currentDistInPath + d) {
+                    const ratio = (animationProgress - currentDistInPath) / d;
+                    dronePos.x = currentPath[i].x + (currentPath[i+1].x - currentPath[i].x) * ratio;
+                    dronePos.y = currentPath[i].y + (currentPath[i+1].y - currentPath[i].y) * ratio;
+
+                    const targetAngle = Math.atan2(currentPath[i+1].y - currentPath[i].y, currentPath[i+1].x - currentPath[i].x);
+                    let diff = targetAngle - droneAngle;
+                    while (diff < -Math.PI) diff += Math.PI * 2;
+                    while (diff > Math.PI) diff -= Math.PI * 2;
+                    droneAngle += diff * (1 - Math.exp(-8 * deltaTime / 1000));
+
+                    windInfluence = getWindFlightInfluence(dronePos, targetAngle);
+                    segmentFound = true;
+
+                    currentLevel.targets.forEach(t => {
+                        if (dist(dronePos, t) < TARGET_RADIUS + 15) t.scanned = true;
+                    });
+                    break;
+                }
+                currentDistInPath += d;
+            }
+
+            if (!segmentFound && animationProgress < pathLength) return;
+
+            // Попутный ветер ускоряет до ~38%, встречный замедляет до ~38%.
+            const targetSpeed = DRONE_SPEED * Math.max(0.62, Math.min(1.38, 1 + windInfluence * 0.45));
+            const speedLerp = 1 - Math.exp(-4.8 * deltaTime / 1000);
+            currentDroneSpeed += (targetSpeed - currentDroneSpeed) * speedLerp;
+
+            const targetLean = -windInfluence * 0.7;
+            droneWindLean += (targetLean - droneWindLean) * (1 - Math.exp(-5.5 * deltaTime / 1000));
+
+            animationProgress += currentDroneSpeed * (deltaTime / 1000);
+
+            if (animationProgress >= pathLength) {
+                dronePos = { ...currentPath[currentPath.length - 1] };
+                flyState = 'landing';
+                takeoffTimer = TAKEOFF_DURATION;
+            }
+        }
+
+        function showWinScreen() {
+            const winModal = document.getElementById('winModal');
+            const starContainer = document.getElementById('resultStars');
+            const starSvg = `<svg class="w-12 h-12 drop-shadow-lg" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>`;
+            
+            let html = '';
+            for(let i=0; i<5; i++) {
+                html += `<div class="text-amber-400 transform transition-all delay-${i*100} duration-500 ${i >= activeStars ? 'opacity-30 grayscale scale-75' : 'scale-100'}">${starSvg}</div>`;
+            }
+            starContainer.innerHTML = html;
+
+            // Запоминаем результат участка (при рестарте уровня перезаписываем).
+            earnedStars[currentLevelIndex] = activeStars;
+            postToHost('DRONE_EVENT', { name: 'level', value: currentLevelIndex + 1 });
+
+            const isLastLevel = currentLevelIndex >= levels.length - 1;
+            const missionDone = currentLevelIndex >= requiredLevels - 1;
+            const closeBtn = document.getElementById('novelCloseBtn');
+
+            // Предупреждение о курсе показываем заново на каждом экране победы.
+            document.getElementById('leaveWarning').classList.add('hidden');
+
+            if (missionDone) {
+                // Задание выполнено: показываем блок курса. В новелле рядом с ним
+                // появляется крестик — через него игрок возвращается к сюжету.
+                document.getElementById('nextLevelBtnContainer').classList.add('hidden');
+                document.getElementById('finalCtaContainer').classList.remove('hidden');
+                if (closeBtn) closeBtn.classList.toggle('hidden', !IN_IFRAME);
+                document.getElementById('winMessage').innerText = isLastLevel
+                    ? "Все прибрежные зоны исследованы!"
+                    : "Материалы по участку собраны. Аналитики уже ждут снимки.";
+            } else {
+                document.getElementById('nextLevelBtnContainer').classList.remove('hidden');
+                document.getElementById('finalCtaContainer').classList.add('hidden');
+                if (closeBtn) closeBtn.classList.add('hidden');
+            }
+
+            winModal.classList.remove('hidden');
+            winModal.style.display = 'flex';
+        }
+
+        function nextLevel() {
+            let winModal = document.getElementById('winModal');
+            winModal.classList.add('hidden');
+            winModal.style.display = 'none'; 
+            
+            if (currentLevelIndex < levels.length - 1) {
+                loadLevel(currentLevelIndex + 1);
+            }
+        }
+
+        function joinProject(btn) {
+            btn.innerHTML = 'Переход на платформу...';
+            btn.classList.replace('bg-sky-500', 'bg-emerald-500');
+            btn.classList.replace('hover:bg-sky-400', 'hover:bg-emerald-400');
+            btn.classList.replace('shadow-sky-500/30', 'shadow-emerald-500/30');
+            
+            setTimeout(() => {
+                // Имитация перехода / Вызов нативного метода в WebView
+                btn.innerHTML = 'Успешно! 🎉';
+            }, 1000);
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>

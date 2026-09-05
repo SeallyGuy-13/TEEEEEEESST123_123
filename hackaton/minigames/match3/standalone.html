@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Эко-Радар: Чистый Берег</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            overscroll-behavior: none;
+            touch-action: none;
+            overflow: hidden;
+            height: 100dvh;
+        }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        .radar-bg {
+            background-image: 
+                linear-gradient(to right, #f1f5f9 1px, transparent 1px),
+                linear-gradient(to bottom, #f1f5f9 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        canvas {
+            touch-action: none;
+            -webkit-tap-highlight-color: transparent;
+            background-color: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
+        }
+        button {
+            min-height: 44px;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+        #tutorialModal > div,
+        #infoModal > div,
+        #boosterTutorialPopup > div,
+        #factContent,
+        #gameOverContent {
+            max-height: calc(100dvh - 2rem);
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            touch-action: pan-y;
+            -webkit-overflow-scrolling: touch;
+        }
+        .slow-transition { transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(226, 232, 240, 0.8);
+        }
+    </style>
+</head>
+<body class="w-screen flex flex-col landscape:flex-row items-center justify-center relative select-none radar-bg">
+
+    <audio id="bgMusic" loop>
+        <source src="../../music/mini_game.mp3" type="audio/mpeg">
+    </audio>
+
+    <div class="w-full max-w-md px-3 pt-3 pb-2 sm:px-4 sm:pt-4 flex-shrink-0 z-10 flex flex-col gap-3 landscape:w-64 landscape:max-w-none landscape:h-full landscape:justify-center landscape:border-r landscape:border-slate-200 landscape:bg-white/50">
+        
+        <div class="flex justify-between items-end landscape:flex-col landscape:items-start landscape:gap-4">
+            <div>
+                <h1 class="text-lg sm:text-xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
+                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    Эко-Радар
+                </h1>
+                <div class="text-[9px] sm:text-[10px] text-slate-500 font-mono uppercase tracking-wider flex items-center gap-1 mt-0.5">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    Спутник онлайн
+                </div>
+            </div>
+            
+            <div class="flex gap-4 items-center landscape:w-full landscape:justify-between">
+                <button id="audioToggle" onclick="toggleAudio()" class="p-2 rounded-full bg-slate-100 text-slate-400 hover:bg-slate-200 hover:text-slate-600 transition-colors">
+                    <svg id="audioIcon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" clip-rule="evenodd"></path><path id="audioCross" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"></path></svg>
+                </button>
+                <div class="text-right">
+                    <div class="text-[10px] sm:text-xs text-slate-500 font-medium">Ходы</div>
+                    <div class="text-2xl sm:text-3xl font-bold text-slate-800 font-mono leading-none" id="movesCount">20</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="glass-panel rounded-xl p-2 sm:p-3 flex justify-around items-center shadow-sm landscape:flex-col landscape:gap-4 landscape:py-4 mt-1">
+            <div class="flex items-center gap-2 landscape:w-full landscape:justify-between" id="goal-plastic-container">
+                <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center">
+                    <canvas id="uiIconPlastic" width="24" height="24"></canvas>
+                </div>
+                <div class="font-mono font-bold text-slate-700 text-base sm:text-lg">
+                    <span id="collected-plastic">0</span><span class="text-slate-400 text-xs sm:text-sm">/</span><span id="target-plastic" class="text-xs sm:text-sm text-slate-500">15</span>
+                </div>
+            </div>
+            <div class="w-px h-6 sm:h-8 bg-slate-200 landscape:w-full landscape:h-px"></div>
+            <div class="flex items-center gap-2 landscape:w-full landscape:justify-between" id="goal-oil-container">
+                <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center">
+                    <canvas id="uiIconOil" width="24" height="24"></canvas>
+                </div>
+                <div class="font-mono font-bold text-slate-700 text-base sm:text-lg">
+                    <span id="collected-oil">0</span><span class="text-slate-400 text-xs sm:text-sm">/</span><span id="target-oil" class="text-xs sm:text-sm text-slate-500">10</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="flex-1 w-full flex justify-center items-center p-4 landscape:p-6 relative z-0 min-h-0 landscape:h-full">
+        <div id="canvasWrapper" class="relative w-full h-full max-w-lg max-h-lg flex justify-center items-center">
+            <canvas id="gameCanvas" class="absolute"></canvas>
+        </div>
+    </div>
+
+    <!-- Обучение при старте -->
+    <div id="tutorialModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 slow-transition opacity-100">
+        <div class="bg-white max-w-sm w-full rounded-2xl shadow-2xl overflow-hidden flex flex-col transform slow-transition scale-100">
+            <div class="h-32 bg-slate-50 flex items-center justify-center border-b border-slate-100 p-4">
+                <div id="tutorialIcon" class="w-20 h-20 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center"></div>
+            </div>
+            <div class="p-6 flex-1 flex flex-col justify-between text-center">
+                <div class="min-h-[100px]">
+                    <h2 id="tutorialTitle" class="text-xl font-bold text-slate-800 mb-2"></h2>
+                    <p id="tutorialText" class="text-sm text-slate-600 leading-relaxed"></p>
+                </div>
+                <div class="flex justify-between items-center mt-6">
+                    <div class="flex gap-1.5" id="tutorialDots">
+                        <div class="w-2 h-2 rounded-full bg-blue-600"></div>
+                        <div class="w-2 h-2 rounded-full bg-slate-200"></div>
+                        <div class="w-2 h-2 rounded-full bg-slate-200"></div>
+                    </div>
+                    <button id="tutorialBtn" onclick="nextTutorialStep()" class="bg-blue-600 text-white font-medium py-2 px-5 rounded-lg hover:bg-blue-700 transition-colors text-sm shadow-sm">Далее</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Информационный Попап (Обучение бустерам /) -->
+    <div id="infoModal" class="fixed inset-0 z-[60] hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 slow-transition opacity-0">
+        <div class="bg-white max-w-sm w-full rounded-2xl p-6 shadow-2xl flex flex-col text-center">
+            <div class="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-4 border border-blue-100" id="infoIcon">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            </div>
+            <h3 class="text-lg font-bold text-slate-800 mb-2" id="infoTitle"></h3>
+            <p class="text-sm text-slate-600 mb-6 leading-relaxed" id="infoText"></p>
+            <button onclick="closeInfoModal()" class="w-full bg-slate-800 text-white font-medium py-2.5 rounded-xl hover:bg-slate-700 transition-colors text-sm">Понятно</button>
+        </div>
+    </div>
+
+    <!-- Результат Игры -->
+    <div id="gameOverModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 slow-transition opacity-0">
+        <div class="bg-white max-w-sm w-full max-h-[95dvh] overflow-y-auto rounded-2xl p-6 shadow-2xl relative transform slow-transition scale-95" id="gameOverContent">
+            
+            <div id="modalSuccess" class="hidden text-center">
+                <div class="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4 text-emerald-600">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
+                </div>
+                <h2 class="text-2xl font-bold text-slate-800 mb-2">Сектор очищен!</h2>
+                <p class="text-sm text-slate-600 mb-4">Данные успешно переданы наземным службам.</p>
+                <div class="bg-slate-50 border border-slate-100 rounded-lg p-3 mb-6 text-xs text-slate-500 font-mono text-left">
+                    > Статус: Синхронизировано<br>
+                    <span id="resultXP">> Опыт: +150 XP</span><br>
+                    <span id="resultRank">> Ранг: Мл. Аналитик</span>
+                </div>
+                <div class="mb-5 bg-blue-50 border border-blue-100 rounded-xl p-4 text-left">
+                    <h3 class="text-sm font-bold text-blue-900 mb-1">Присоединяйся к проекту</h3>
+                    <p class="text-[11px] text-blue-700 mb-3 leading-relaxed">Узнайте, как применять данные дистанционного зондирования Земли (ДЗЗ) для защиты реальной природы!</p>
+                    <button class="w-full text-xs font-bold text-white bg-blue-600 py-2.5 rounded-lg hover:bg-blue-700 transition-colors shadow-sm">Пройти курс «Чистый берег»</button>
+                </div>
+                <button onclick="finishForHost(true)" class="w-full bg-emerald-500 text-white font-semibold py-3 rounded-xl hover:bg-emerald-600 transition-colors shadow-sm">Продолжить</button>
+            </div>
+
+            <div id="modalFail" class="hidden text-center">
+                <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-500">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                </div>
+                <h2 class="text-2xl font-bold text-slate-800 mb-2">Связь потеряна</h2>
+                <p class="text-sm text-slate-600 mb-6">Спутник покинул зону видимости сектора. Мы не успели собрать данные.</p>
+                <button onclick="finishForHost(false)" class="w-full bg-slate-800 text-white font-semibold py-3 rounded-xl hover:bg-slate-700 transition-colors shadow-sm">Повторить сканирование</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const IN_IFRAME = window.parent !== window;
+        let resolveHostConfig;
+        const hostConfigPromise = new Promise(resolve => { resolveHostConfig = resolve; });
+
+        function postToHost(type, payload) {
+            if (IN_IFRAME) window.parent.postMessage({ type, payload }, '*');
+        }
+
+        window.addEventListener('message', event => {
+            const message = event.data || {};
+            if (message.type === 'MATCH3_START' && resolveHostConfig) {
+                resolveHostConfig((message.payload && message.payload.config) || null);
+                resolveHostConfig = null;
+            }
+        });
+
+        const TYPE_PLASTIC = 1;
+        const TYPE_BIO = 2;
+        const TYPE_OIL = 3;
+        const TYPE_METAL = 4;
+        const TYPES_COUNT = 4;
+
+        const SPEC_NONE = 0;
+        const SPEC_ROW = 1;     // Сканер (4 в ряд)
+        const SPEC_AREA = 2;    // Дрон (L/T форма)
+        const TYPE_AI_CORE = 9; // Сфера (5 в ряд)
+
+        const STATE_IDLE = 0;
+        const STATE_SWAPPING = 1;
+        const STATE_DESTROYING = 2;
+        const STATE_DROPPING = 3;
+        const STATE_GAME_OVER = 4;
+        const STATE_TUTORIAL = 7;
+        const STATE_PAUSED = 8; // Для попапов фактов и бустеров
+
+        let grid = [];
+        let gameState = STATE_TUTORIAL;
+        let selectedCell = null;
+        let targetCell = null;
+        let swapDirection = 0; 
+        let animationProgress = 0;
+        let swapIsReverting = false;
+        
+        let toDestroy = []; 
+        let moves = 20;
+        let initialMoves = 20;
+        let targetPlastic = 15;
+        let targetOil = 10;
+        let currentGoals = { [TYPE_PLASTIC]: 0, [TYPE_OIL]: 0 };
+
+        let lastTime = 0;
+        let particles = [];
+        let globalTime = 0;
+        
+        let isAudioPlaying = false;
+        let seenBoosters = new Set(); // Для туториала бустеров
+
+        // База знаний (JSON)
+        const ecoFacts = [
+            { triggerMove: 15, shown: false, title: "Спектральный анализ", text: "Спутники ДЗЗ выявляют скопления полимеров (пластика) в воде по характерному пику отражения в ближнем инфракрасном диапазоне." },
+            { triggerMove: 8, shown: false, title: "Нефтяные разливы", text: "Пленка на поверхности океана меняет его тепловое излучение. Спутники с инфракрасными радарами видят это даже ночью." }
+        ];
+
+        const tutorialSlides = [
+            {
+                title: "Оператор ДЗЗ",
+                text: "Ваша задача — анализ спутниковых снимков береговой линии и координация очистки.",
+                icon: `<svg class="w-10 h-10 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`
+            },
+            {
+                title: "Анализ аномалий",
+                text: "Меняйте местами соседние элементы. Цель — собрать нужное количество Пластика и Нефти до потери сигнала (окончания ходов).",
+                icon: `<div class="flex gap-2"><div class="w-8 h-8 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center"><svg class="w-4 h-4 text-blue-500" viewBox="0 0 24 24" fill="currentColor"><path d="M14.67 4.56l-3.34-3.34c-.39-.39-1.02-.39-1.41 0l-3.34 3.34c-.39.39-.39 1.02 0 1.41l3.34 3.34c.39.39 1.02.39 1.41 0l3.34-3.34c.39-.39.39-1.02 0-1.41zm-4.05-1.92l1.92 1.92-1.92 1.92-1.92-1.92 1.92-1.92zm-5.6 9.39c-1.38 0-2.5 1.12-2.5 2.5v7.5h1.5v-7.5c0-.55.45-1 1-1s1 .45 1 1v7.5h1.5v-7.5c0-1.38-1.12-2.5-2.5-2.5zm16 0c-1.38 0-2.5 1.12-2.5 2.5v7.5h1.5v-7.5c0-.55.45-1 1-1s1 .45 1 1v7.5h1.5v-7.5c0-1.38-1.12-2.5-2.5-2.5zm-8 1.5c-2.48 0-4.5 2.02-4.5 4.5s2.02 4.5 4.5 4.5 4.5-2.02 4.5-4.5-2.02-4.5-4.5-4.5zm0 7.5c-1.65 0-3-1.35-3-3s1.35-3 3-3 3 1.35 3 3-1.35 3-3 3z"/></svg></div><div class="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center"><svg class="w-4 h-4 text-slate-800" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c-5.33 4.55-8 8.48-8 11.8 0 4.98 3.8 8.2 8 8.2s8-3.22 8-8.2c0-3.32-2.67-7.25-8-11.8zm0 18c-3.35 0-6-2.57-6-6.2 0-2.34 1.95-5.44 6-9.14 4.05 3.7 6 6.79 6 9.14 0 3.63-2.65 6.2-6 6.2zm1-11h-2v4h2v-4zm0 6h-2v2h2v-2z"/></svg></div></div>`
+            },
+            {
+                title: "Технологии в помощь",
+                text: "Собирайте комбинации больше трех, чтобы создавать бустеры. Они помогут очистить большие зоны за один ход.",
+                icon: `<svg class="w-10 h-10 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg>`
+            }
+        ];
+        let currentTutorialStep = 0;
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const GRID_SIZE = 8;
+        let CELL_SIZE = 0;
+
+        // В iframe конфигурацию передаёт новелла; автономно используются значения демо.
+        async function fetchLevelConfig(levelId) {
+            if (!IN_IFRAME) return { moves: 20, targets: { 1: 15, 3: 10 } };
+
+            const config = await hostConfigPromise;
+            const goals = (config && config.goals) || [];
+            const target = item => {
+                const goal = goals.find(entry => entry.item === item);
+                return goal ? goal.count : 0;
+            };
+            return {
+                moves: (config && config.moveLimit) || 20,
+                targets: { 1: target('plastic'), 3: target('oil') }
+            };
+        }
+
+        async function sendGameResult(isWin, movesLeft, collectedStats) {
+            const collected = {
+                plastic: collectedStats[TYPE_PLASTIC] || 0,
+                oil: collectedStats[TYPE_OIL] || 0
+            };
+            const total = collected.plastic + collected.oil;
+            const movesUsed = Math.max(0, initialMoves - movesLeft);
+            const score = total * 50 + (isWin ? movesLeft * 20 : 0);
+            const stars = isWin
+                ? Math.max(1, Math.min(3, 1 + Math.floor((movesLeft / (initialMoves || 20)) * 3)))
+                : 0;
+
+            postToHost(isWin ? 'MATCH3_COMPLETE' : 'MATCH3_FAIL', {
+                score, stars, movesUsed, collected
+            });
+            return { success: true, reward: { xpEarned: 150, newRank: "Мл. Аналитик" } };
+        }
+
+        function finishForHost(isWin) {
+            if (IN_IFRAME) sendGameResult(isWin, moves, currentGoals);
+            else location.reload();
+        }
+
+        // Упр Аудио
+        function toggleAudio() {
+            // Внутри новеллы музыку уже включает MinigameHost. Второй плеер
+            // создавал тот же трек поверх первого и удваивал громкость.
+            if (IN_IFRAME) return;
+
+            const audio = document.getElementById('bgMusic');
+            const cross = document.getElementById('audioCross');
+            if (isAudioPlaying) {
+                audio.pause();
+                cross.classList.remove('hidden');
+                isAudioPlaying = false;
+            } else {
+                audio.play().catch(e => console.log("Audio play blocked", e));
+                cross.classList.add('hidden');
+                isAudioPlaying = true;
+            }
+        }
+
+        function initSize() {
+            const wrapper = document.getElementById('canvasWrapper');
+            const rect = wrapper.getBoundingClientRect();
+            const size = Math.floor(Math.min(rect.width, rect.height));
+            canvas.width = size;
+            canvas.height = size;
+            CELL_SIZE = size / GRID_SIZE;
+            
+            drawUIIcons();
+            if(gameState === STATE_IDLE || gameState === STATE_TUTORIAL) draw();
+        }
+
+        window.addEventListener('resize', initSize);
+
+        window.onload = () => {
+            if (IN_IFRAME) {
+                document.getElementById('audioToggle').classList.add('hidden');
+                document.getElementById('bgMusic').pause();
+            }
+            initSize();
+            initGrid(true); 
+            updateTutorialUI();
+            requestAnimationFrame(gameLoop);
+            postToHost('MATCH3_READY', {});
+        };
+
+        function updateTutorialUI() {
+            const slide = tutorialSlides[currentTutorialStep];
+            document.getElementById('tutorialTitle').innerText = slide.title;
+            document.getElementById('tutorialText').innerText = slide.text;
+            document.getElementById('tutorialIcon').innerHTML = slide.icon;
+            
+            const dots = document.getElementById('tutorialDots').children;
+            for(let i=0; i<dots.length; i++) {
+                dots[i].className = i === currentTutorialStep ? "w-2 h-2 rounded-full bg-blue-600" : "w-2 h-2 rounded-full bg-slate-200";
+            }
+            document.getElementById('tutorialBtn').innerText = currentTutorialStep === tutorialSlides.length - 1 ? "Начать смену" : "Далее";
+        }
+
+        function nextTutorialStep() {
+            currentTutorialStep++;
+            if (currentTutorialStep >= tutorialSlides.length) {
+                const modal = document.getElementById('tutorialModal');
+                modal.classList.replace('opacity-100', 'opacity-0');
+                modal.children[0].classList.replace('scale-100', 'scale-95');
+                
+                if(!IN_IFRAME && !isAudioPlaying) toggleAudio();
+
+                setTimeout(() => {
+                    modal.classList.add('hidden');
+                    modal.classList.remove('flex');
+                    startGameSequence();
+                }, 500); 
+            } else {
+                updateTutorialUI();
+            }
+        }
+
+        function showInfoPopup(title, text) {
+            gameState = STATE_PAUSED;
+            const modal = document.getElementById('infoModal');
+            document.getElementById('infoTitle').innerText = title;
+            document.getElementById('infoText').innerText = text;
+            
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            void modal.offsetWidth; 
+            modal.classList.replace('opacity-0', 'opacity-100');
+        }
+
+        function closeInfoModal() {
+            const modal = document.getElementById('infoModal');
+            modal.classList.replace('opacity-100', 'opacity-0');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+                gameState = STATE_IDLE; // Возвращаем в игру
+                checkWinLose(); // Перепроверяем на случай победы
+            }, 400);
+        }
+
+        function checkEcoFacts() {
+            let fact = ecoFacts.find(f => f.triggerMove === moves && !f.shown);
+            if (fact) {
+                fact.shown = true;
+                showInfoPopup(fact.title, fact.text);
+            }
+        }
+
+        function checkNewBooster(boosterType) {
+            if (seenBoosters.has(boosterType)) return;
+            seenBoosters.add(boosterType);
+            
+            let title = ""; let text = "";
+            if (boosterType === SPEC_ROW) {
+                title = "Спутниковый сканер";
+                text = "Вы создали линейный сканер (4 в ряд). Объедините его с элементами того же цвета или дважды нажмите, чтобы очистить целую линию.";
+            } else if (boosterType === SPEC_AREA) {
+                title = "Дрон-уборщик";
+                text = "Сбор T или L формы вызывает очистной дрон. При активации он зачистит область 3х3 вокруг себя.";
+            } else if (boosterType === TYPE_AI_CORE) {
+                title = "ИИ-Анализатор";
+                text = "Вы собрали 5 в ряд! Смахните эту сферу на любой элемент, чтобы нейросеть удалила все элементы этого типа с поля.";
+            }
+            if(title) showInfoPopup(title, text);
+        }
+
+        async function startGameSequence() {
+            const config = await fetchLevelConfig(101); // Тихо берем с бэка
+            moves = config.moves;
+            initialMoves = moves;
+            targetPlastic = config.targets[TYPE_PLASTIC];
+            targetOil = config.targets[TYPE_OIL];
+            
+            document.getElementById('movesCount').innerText = moves;
+            document.getElementById('target-plastic').innerText = targetPlastic;
+            document.getElementById('target-oil').innerText = targetOil;
+            
+            initGrid(false);
+            startLevel();
+        }
+
+        function initGrid(isDummy = false) {
+            grid = [];
+            for (let r = 0; r < GRID_SIZE; r++) {
+                grid[r] = [];
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    let type;
+                    do { type = Math.floor(Math.random() * TYPES_COUNT) + 1; } 
+                    while (!isDummy && ((r >= 2 && grid[r-1][c].type === type && grid[r-2][c].type === type) ||
+                             (c >= 2 && grid[r][c-1].type === type && grid[r][c-2].type === type)));
+                    
+                    grid[r][c] = { type, special: SPEC_NONE, xOffset: 0, yOffset: 0, alpha: 1, scale: 1 };
+                }
+            }
+        }
+
+        function startLevel() {
+            currentGoals = { [TYPE_PLASTIC]: 0, [TYPE_OIL]: 0 };
+            document.getElementById('collected-plastic').innerText = 0;
+            document.getElementById('collected-oil').innerText = 0;
+            document.getElementById('goal-plastic-container').classList.remove('opacity-50');
+            document.getElementById('goal-oil-container').classList.remove('opacity-50');
+            gameState = STATE_IDLE;
+        }
+
+        function getEventCoords(e) {
+            const rect = canvas.getBoundingClientRect();
+            const point = (e.touches && e.touches[0])
+                || (e.changedTouches && e.changedTouches[0])
+                || e;
+            return { x: point.clientX - rect.left, y: point.clientY - rect.top };
+        }
+
+        let startX, startY;
+        let lastTapTime = 0;
+
+        canvas.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            canvas.setPointerCapture?.(e.pointerId);
+            handleInputStart(e);
+        });
+        canvas.addEventListener('pointerup', (e) => {
+            e.preventDefault();
+            handleInputEnd(e);
+            if (canvas.hasPointerCapture?.(e.pointerId)) {
+                canvas.releasePointerCapture(e.pointerId);
+            }
+        });
+        canvas.addEventListener('pointercancel', () => {
+            selectedCell = null;
+            targetCell = null;
+        });
+
+        function handleInputStart(e) {
+            if (gameState !== STATE_IDLE) return;
+
+            const coords = getEventCoords(e);
+            const c = Math.floor(coords.x / CELL_SIZE);
+            const r = Math.floor(coords.y / CELL_SIZE);
+
+            if (r >= 0 && r < GRID_SIZE && c >= 0 && c < GRID_SIZE) {
+                const currentTime = new Date().getTime();
+                const tapLength = currentTime - lastTapTime;
+                
+                if (selectedCell) {
+                    const dr = Math.abs(selectedCell.r - r);
+                    const dc = Math.abs(selectedCell.c - c);
+                    
+                    if (dr === 0 && dc === 0 && tapLength < 350 && tapLength > 0) {
+                        const token = grid[r][c];
+                        if (token && (token.special !== SPEC_NONE || token.type === TYPE_AI_CORE)) {
+                            activateBooster(r, c);
+                            selectedCell = null;
+                            lastTapTime = 0;
+                            return;
+                        }
+                    } else if ((dr === 1 && dc === 0) || (dr === 0 && dc === 1)) {
+                        targetCell = { r, c };
+                        swapDirection = (dr === 0) ? 0 : 1;
+                        swapIsReverting = false;
+                        gameState = STATE_SWAPPING;
+                        animationProgress = 0;
+                        return; 
+                    }
+                }
+                
+                lastTapTime = currentTime;
+                selectedCell = { r, c };
+                startX = coords.x;
+                startY = coords.y;
+            }
+        }
+
+        function handleInputEnd(e) {
+            if (gameState !== STATE_IDLE || !selectedCell || targetCell) return;
+
+            const coords = getEventCoords(e);
+            const dx = coords.x - startX;
+            const dy = coords.y - startY;
+
+            if (Math.abs(dx) > CELL_SIZE / 3 || Math.abs(dy) > CELL_SIZE / 3) {
+                let targetR = selectedCell.r;
+                let targetC = selectedCell.c;
+
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    targetC += (dx > 0) ? 1 : -1;
+                    swapDirection = 0;
+                } else {
+                    targetR += (dy > 0) ? 1 : -1;
+                    swapDirection = 1;
+                }
+
+                if (targetR >= 0 && targetR < GRID_SIZE && targetC >= 0 && targetC < GRID_SIZE) {
+                    targetCell = { r: targetR, c: targetC };
+                    swapIsReverting = false;
+                    gameState = STATE_SWAPPING;
+                    animationProgress = 0;
+                } else {
+                    selectedCell = null;
+                }
+            }
+        }
+
+        function activateBooster(r, c) {
+            toDestroy = [];
+            if(grid[r][c].type === TYPE_AI_CORE) {
+                const randomType = Math.floor(Math.random() * TYPES_COUNT) + 1;
+                for(let rr=0; rr<GRID_SIZE; rr++) {
+                    for(let cc=0; cc<GRID_SIZE; cc++) {
+                        if(grid[rr][cc].type === randomType || (rr===r && cc===c)) {
+                            toDestroy.push({r:rr, c:cc, isSpecial:false});
+                        }
+                    }
+                }
+            } else {
+                toDestroy.push({r, c, isSpecial: true});
+            }
+
+            if(toDestroy.length > 0) {
+                moves--;
+                document.getElementById('movesCount').innerText = moves;
+                gameState = STATE_DESTROYING;
+                animationProgress = 0;
+            }
+        }
+
+        function updateState(dt) {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i];
+                p.x += p.vx * (dt * 0.08); p.y += p.vy * (dt * 0.08);
+                p.life -= dt * 0.0025;
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+
+            if (gameState === STATE_SWAPPING) {
+                animationProgress += dt * 0.0035; 
+                if (animationProgress >= 1) {
+                    animationProgress = 1;
+                    executeSwap();
+                }
+            } else if (gameState === STATE_DESTROYING) {
+                animationProgress += dt * 0.006;
+                if (animationProgress >= 1) {
+                    executeDestroy();
+                } else {
+                    toDestroy.forEach(p => {
+                        if(grid[p.r] && grid[p.r][p.c]) grid[p.r][p.c].scale = 1 - animationProgress;
+                    });
+                }
+            } else if (gameState === STATE_DROPPING) {
+                let isStillDropping = false;
+                const fallSpeed = dt * 0.015; 
+
+                for (let r = 0; r < GRID_SIZE; r++) {
+                    for (let c = 0; c < GRID_SIZE; c++) {
+                        let token = grid[r][c];
+                        if (!token) continue;
+                        if (token.yOffset < 0) {
+                            token.yOffset += fallSpeed;
+                            isStillDropping = true;
+                            if (token.yOffset >= 0) token.yOffset = 0;
+                        } 
+                        if (token.alpha < 1) {
+                            token.alpha += dt * 0.008;
+                            isStillDropping = true;
+                            if (token.alpha > 1) token.alpha = 1;
+                        }
+                    }
+                }
+
+                if (!isStillDropping) {
+                    const matches = findMatchesAdvanced();
+                    if (matches.length > 0) {
+                        toDestroy = matches;
+                        gameState = STATE_DESTROYING;
+                        animationProgress = 0;
+                    } else {
+                        checkWinLose();
+                    }
+                }
+            }
+        }
+
+        function executeSwap() {
+            const r1 = selectedCell.r, c1 = selectedCell.c;
+            const r2 = targetCell.r, c2 = targetCell.c;
+
+            // Фактический свап
+            const temp = grid[r1][c1];
+            grid[r1][c1] = grid[r2][c2];
+            grid[r2][c2] = temp;
+            grid[r1][c1].xOffset = 0; grid[r1][c1].yOffset = 0;
+            grid[r2][c2].xOffset = 0; grid[r2][c2].yOffset = 0;
+
+            if (swapIsReverting) {
+                swapIsReverting = false;
+                gameState = STATE_IDLE;
+                selectedCell = null; targetCell = null;
+                return;
+            }
+
+            // Проверка на активацию бустера
+            if (grid[r1][c1].type === TYPE_AI_CORE || grid[r2][c2].type === TYPE_AI_CORE || 
+                (grid[r1][c1].special !== SPEC_NONE && grid[r2][c2].special !== SPEC_NONE)) {
+                
+                let aiCoreCell = null;
+                if (grid[r1][c1].type === TYPE_AI_CORE) aiCoreCell = {r:r1, c:c1};
+                else if (grid[r2][c2].type === TYPE_AI_CORE) aiCoreCell = {r:r2, c:c2};
+
+                if (aiCoreCell) {
+                    let otherCell = aiCoreCell.r === r1 && aiCoreCell.c === c1 ? {r:r2, c:c2} : {r:r1, c:c1};
+                    let targetType = grid[otherCell.r][otherCell.c].type;
+                    toDestroy = [{r: aiCoreCell.r, c: aiCoreCell.c, isSpecial: false}];
+                    
+                    if (targetType !== TYPE_AI_CORE) {
+                        for(let r=0; r<GRID_SIZE; r++) {
+                            for(let c=0; c<GRID_SIZE; c++) {
+                                if(grid[r][c].type === targetType) toDestroy.push({r, c, isSpecial: false});
+                            }
+                        }
+                    }
+                } else {
+                    toDestroy = [{r:r1, c:c1, isSpecial:true}, {r:r2, c:c2, isSpecial:true}];
+                }
+                
+                moves--;
+                document.getElementById('movesCount').innerText = moves;
+                gameState = STATE_DESTROYING;
+                animationProgress = 0;
+                selectedCell = null; targetCell = null;
+                return;
+            }
+
+            const matches = findMatchesAdvanced();
+
+            if (matches.length > 0) {
+                moves--;
+                document.getElementById('movesCount').innerText = moves;
+                toDestroy = matches;
+                gameState = STATE_DESTROYING;
+                animationProgress = 0;
+                selectedCell = null; targetCell = null;
+            } else {
+                // Возврат
+                swapIsReverting = true;
+                gameState = STATE_SWAPPING;
+                animationProgress = 0;
+                // Свап обратно в массив
+                const temp2 = grid[r1][c1];
+                grid[r1][c1] = grid[r2][c2];
+                grid[r2][c2] = temp2;
+            }
+        }
+
+        function executeDestroy() {
+            let pCount = 0; let oCount = 0;
+            let finalDestroyList = [...toDestroy];
+            let processed = new Set();
+            let newBoostersCreated = [];
+            
+            while(finalDestroyList.length > 0) {
+                let cell = finalDestroyList.pop();
+                let key = `${cell.r},${cell.c}`;
+                if(processed.has(key)) continue;
+                processed.add(key);
+
+                if (grid[cell.r] && grid[cell.r][cell.c]) {
+                    let token = grid[cell.r][cell.c];
+                    
+                    if (token.type === TYPE_PLASTIC) pCount++;
+                    if (token.type === TYPE_OIL) oCount++;
+
+                    createParticles(cell.c * CELL_SIZE + CELL_SIZE/2, cell.r * CELL_SIZE + CELL_SIZE/2, token.type);
+
+                    // Активация
+                    if(token.special === SPEC_ROW) {
+                        for(let i=0; i<GRID_SIZE; i++) {
+                            if(i !== cell.c) finalDestroyList.push({r: cell.r, c: i, isSpecial: true});
+                            if(i !== cell.r) finalDestroyList.push({r: i, c: cell.c, isSpecial: true});
+                        }
+                    } else if (token.special === SPEC_AREA) {
+                        for(let rr=cell.r-1; rr<=cell.r+1; rr++) {
+                            for(let cc=cell.c-1; cc<=cell.c+1; cc++) {
+                                if(rr>=0 && rr<GRID_SIZE && cc>=0 && cc<GRID_SIZE && !(rr===cell.r && cc===cell.c)) {
+                                    finalDestroyList.push({r: rr, c: cc, isSpecial: true});
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Создание новых
+                    if(cell.creates) {
+                        grid[cell.r][cell.c] = {
+                            type: cell.creates === TYPE_AI_CORE ? TYPE_AI_CORE : token.type,
+                            special: cell.creates === TYPE_AI_CORE ? SPEC_NONE : cell.creates,
+                            xOffset: 0, yOffset: 0, alpha: 1, scale: 1
+                        };
+                        newBoostersCreated.push(cell.creates);
+                    } else {
+                        grid[cell.r][cell.c] = null;
+                    }
+                }
+            }
+
+            if(pCount > 0) updateGoals(TYPE_PLASTIC, pCount);
+            if(oCount > 0) updateGoals(TYPE_OIL, oCount);
+
+            // Проверка на новые бустеры для туториала
+            for(let b of newBoostersCreated) checkNewBooster(b);
+
+            startDropping();
+        }
+
+        function updateGoals(type, count) {
+            if(type === TYPE_PLASTIC) {
+                currentGoals[TYPE_PLASTIC] += count;
+                const el = document.getElementById('collected-plastic');
+                el.innerText = currentGoals[TYPE_PLASTIC];
+                el.parentElement.parentElement.classList.add('scale-110', 'transition-transform');
+                setTimeout(() => el.parentElement.parentElement.classList.remove('scale-110'), 200);
+                if(currentGoals[TYPE_PLASTIC] >= targetPlastic) document.getElementById('goal-plastic-container').classList.add('opacity-50');
+            }
+            if(type === TYPE_OIL) {
+                currentGoals[TYPE_OIL] += count;
+                const el = document.getElementById('collected-oil');
+                el.innerText = currentGoals[TYPE_OIL];
+                el.parentElement.parentElement.classList.add('scale-110', 'transition-transform');
+                setTimeout(() => el.parentElement.parentElement.classList.remove('scale-110'), 200);
+                if(currentGoals[TYPE_OIL] >= targetOil) document.getElementById('goal-oil-container').classList.add('opacity-50');
+            }
+        }
+
+        function startDropping() {
+            for (let c = 0; c < GRID_SIZE; c++) {
+                let emptySpaces = 0;
+                for (let r = GRID_SIZE - 1; r >= 0; r--) {
+                    if (grid[r][c] === null) {
+                        emptySpaces++;
+                    } else if (emptySpaces > 0) {
+                        grid[r + emptySpaces][c] = grid[r][c];
+                        grid[r + emptySpaces][c].yOffset = -emptySpaces;
+                        grid[r][c] = null;
+                    }
+                }
+                for (let r = 0; r < emptySpaces; r++) {
+                    let type = Math.floor(Math.random() * TYPES_COUNT) + 1;
+                    grid[r][c] = {
+                        type: type, special: SPEC_NONE,
+                        xOffset: 0, yOffset: -(emptySpaces),
+                        alpha: 0, scale: 1
+                    };
+                }
+            }
+            gameState = STATE_DROPPING;
+        }
+
+        function findMatchesAdvanced() {
+            let toDestroyMap = new Map(); 
+            let horizMatches = []; let vertMatches = [];
+
+            for (let r = 0; r < GRID_SIZE; r++) {
+                let matchLen = 1;
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    let checkMatch = false;
+                    if (c === GRID_SIZE - 1) checkMatch = true;
+                    else {
+                        if (grid[r][c].type === grid[r][c+1].type && grid[r][c].type !== TYPE_AI_CORE) matchLen++;
+                        else checkMatch = true;
+                    }
+                    if (checkMatch) {
+                        if (matchLen >= 3) {
+                            let match = []; for (let i = 0; i < matchLen; i++) match.push({r, c: c - i});
+                            horizMatches.push(match);
+                        }
+                        matchLen = 1;
+                    }
+                }
+            }
+
+            for (let c = 0; c < GRID_SIZE; c++) {
+                let matchLen = 1;
+                for (let r = 0; r < GRID_SIZE; r++) {
+                    let checkMatch = false;
+                    if (r === GRID_SIZE - 1) checkMatch = true;
+                    else {
+                        if (grid[r][c].type === grid[r+1][c].type && grid[r][c].type !== TYPE_AI_CORE) matchLen++;
+                        else checkMatch = true;
+                    }
+                    if (checkMatch) {
+                        if (matchLen >= 3) {
+                            let match = []; for (let i = 0; i < matchLen; i++) match.push({r: r - i, c});
+                            vertMatches.push(match);
+                        }
+                        matchLen = 1;
+                    }
+                }
+            }
+
+            horizMatches.forEach(hm => {
+                let isLOrT = false; let intersectPoint = null;
+                vertMatches.forEach((vm) => {
+                    if (vm.length === 0) return;
+                    for (let h of hm) {
+                        for (let v of vm) {
+                            if (h.r === v.r && h.c === v.c) {
+                                isLOrT = true; intersectPoint = h; vm.length = 0; break;
+                            }
+                        }
+                        if (isLOrT) break;
+                    }
+                });
+                hm.forEach(p => toDestroyMap.set(`${p.r},${p.c}`, {r: p.r, c: p.c}));
+                if (isLOrT) toDestroyMap.set(`${intersectPoint.r},${intersectPoint.c}`, {r: intersectPoint.r, c: intersectPoint.c, creates: SPEC_AREA});
+                else if (hm.length >= 5) toDestroyMap.set(`${hm[2].r},${hm[2].c}`, {r: hm[2].r, c: hm[2].c, creates: TYPE_AI_CORE});
+                else if (hm.length === 4) toDestroyMap.set(`${hm[1].r},${hm[1].c}`, {r: hm[1].r, c: hm[1].c, creates: SPEC_ROW});
+            });
+
+            vertMatches.forEach(vm => {
+                if (vm.length === 0) return;
+                vm.forEach(p => toDestroyMap.set(`${p.r},${p.c}`, {r: p.r, c: p.c}));
+                if (vm.length >= 5) toDestroyMap.set(`${vm[2].r},${vm[2].c}`, {r: vm[2].r, c: vm[2].c, creates: TYPE_AI_CORE});
+                else if (vm.length === 4) toDestroyMap.set(`${vm[1].r},${vm[1].c}`, {r: vm[1].r, c: vm[1].c, creates: SPEC_ROW});
+            });
+
+            return Array.from(toDestroyMap.values());
+        }
+
+        function checkWinLose() {
+            if (gameState === STATE_PAUSED) return; // Если выскочил факт/бустер, ждем
+            
+            const allDone = currentGoals[TYPE_PLASTIC] >= targetPlastic && currentGoals[TYPE_OIL] >= targetOil;
+            gameState = STATE_IDLE; 
+
+            if (allDone) processGameEnd(true);
+            else if (moves <= 0) processGameEnd(false);
+            else checkEcoFacts(); 
+        }
+
+        function processGameEnd(isWin) {
+            gameState = STATE_GAME_OVER;
+            const resultPromise = IN_IFRAME
+                ? Promise.resolve({ success: true, reward: { xpEarned: 150, newRank: "Мл. Аналитик" } })
+                : sendGameResult(isWin, moves, currentGoals);
+            resultPromise.then(result => {
+                if(isWin && result.reward) {
+                    document.getElementById('resultXP').innerText = `> Опыт: +${result.reward.xpEarned} XP`;
+                    document.getElementById('resultRank').innerText = `> Ранг: ${result.reward.newRank}`;
+                }
+            });
+            setTimeout(() => { showGameOverModal(isWin ? 'modalSuccess' : 'modalFail'); }, 500);
+        }
+
+        function showGameOverModal(contentId) {
+            document.getElementById(contentId).classList.remove('hidden');
+            const modal = document.getElementById('gameOverModal');
+            const content = document.getElementById('gameOverContent');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            void modal.offsetWidth;
+            modal.classList.replace('opacity-0', 'opacity-100');
+            content.classList.replace('scale-95', 'scale-100');
+        }
+
+        function gameLoop(timestamp) {
+            if (!lastTime) lastTime = timestamp;
+            const dt = timestamp - lastTime;
+            lastTime = timestamp;
+            globalTime = timestamp;
+
+            if(gameState !== STATE_PAUSED && gameState !== STATE_TUTORIAL) updateState(dt);
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function drawUIIcons() {
+            const ctxP = document.getElementById('uiIconPlastic').getContext('2d');
+            const ctxO = document.getElementById('uiIconOil').getContext('2d');
+            ctxP.clearRect(0,0,24,24); ctxO.clearRect(0,0,24,24);
+            ctxP.translate(12,12); ctxO.translate(12,12);
+            drawToken(ctxP, TYPE_PLASTIC, SPEC_NONE, 10);
+            drawToken(ctxO, TYPE_OIL, SPEC_NONE, 10);
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Сетка
+            ctx.strokeStyle = '#f1f5f9';
+            ctx.lineWidth = 1;
+            for(let i=0; i<=GRID_SIZE; i++) {
+                ctx.beginPath(); ctx.moveTo(i*CELL_SIZE, 0); ctx.lineTo(i*CELL_SIZE, canvas.height); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, i*CELL_SIZE); ctx.lineTo(canvas.width, i*CELL_SIZE); ctx.stroke();
+            }
+
+            if (!grid || grid.length === 0) return;
+
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    let token = grid[r][c];
+                    if (!token) continue;
+
+                    let x = c * CELL_SIZE; let y = r * CELL_SIZE;
+
+                    if (gameState === STATE_SWAPPING) {
+                        if (selectedCell && selectedCell.r === r && selectedCell.c === c) {
+                            if (swapDirection === 0) x += (targetCell.c - selectedCell.c) * CELL_SIZE * animationProgress;
+                            else y += (targetCell.r - selectedCell.r) * CELL_SIZE * animationProgress;
+                        } else if (targetCell && targetCell.r === r && targetCell.c === c) {
+                            if (swapDirection === 0) x += (selectedCell.c - targetCell.c) * CELL_SIZE * animationProgress;
+                            else y += (selectedCell.r - targetCell.r) * CELL_SIZE * animationProgress;
+                        }
+                    }
+
+                    y += token.yOffset * CELL_SIZE;
+
+                    ctx.save();
+                    ctx.translate(x + CELL_SIZE / 2, y + CELL_SIZE / 2);
+                    ctx.scale(token.scale, token.scale);
+                    ctx.globalAlpha = token.alpha;
+
+                    drawToken(ctx, token.type, token.special, CELL_SIZE * 0.35);
+                    ctx.restore();
+                }
+            }
+
+            if (selectedCell && gameState === STATE_IDLE) {
+                ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = 3;
+                ctx.beginPath(); ctx.roundRect(selectedCell.c * CELL_SIZE + 2, selectedCell.r * CELL_SIZE + 2, CELL_SIZE - 4, CELL_SIZE - 4, 8); ctx.stroke();
+            }
+
+            particles.forEach(p => {
+                ctx.globalAlpha = p.life; ctx.fillStyle = p.color;
+                ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+                ctx.globalAlpha = 1;
+            });
+        }
+
+        function drawToken(ctx, type, special, radius) {
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            // сфера
+            if (type === TYPE_AI_CORE) {
+                ctx.fillStyle = '#1e293b'; // Ядро
+                ctx.beginPath(); ctx.arc(0, 0, radius*0.8, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = '#6366f1'; // Свечение
+                ctx.beginPath(); ctx.arc(0, 0, radius*0.4, 0, Math.PI*2); ctx.fill();
+                
+                // Орбиты
+                ctx.save();
+                ctx.rotate(globalTime * 0.002);
+                ctx.strokeStyle = '#818cf8'; ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.ellipse(0, 0, radius, radius*0.3, Math.PI/4, 0, Math.PI*2); ctx.stroke();
+                ctx.restore();
+                ctx.save();
+                ctx.rotate(-globalTime * 0.0015);
+                ctx.strokeStyle = '#c7d2fe'; ctx.lineWidth = 1.5;
+                ctx.beginPath(); ctx.ellipse(0, 0, radius*0.9, radius*0.2, -Math.PI/3, 0, Math.PI*2); ctx.stroke();
+                ctx.restore();
+                return;
+            }
+
+            // Обычные элементы
+            if (type === TYPE_PLASTIC) {
+                ctx.fillStyle = '#bfdbfe'; ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.moveTo(-radius*0.3, -radius*0.6); ctx.lineTo(radius*0.3, -radius*0.6);
+                ctx.lineTo(radius*0.4, -radius*0.4); ctx.lineTo(radius*0.4, radius*0.8);
+                ctx.lineTo(-radius*0.4, radius*0.8); ctx.lineTo(-radius*0.4, -radius*0.4);
+                ctx.closePath(); ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(-radius*0.15, -radius*0.6); ctx.lineTo(-radius*0.15, -radius*0.8);
+                ctx.lineTo(radius*0.15, -radius*0.8); ctx.lineTo(radius*0.15, -radius*0.6); ctx.stroke();
+            }
+            else if (type === TYPE_BIO) {
+                ctx.fillStyle = '#bbf7d0'; ctx.strokeStyle = '#22c55e'; ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.moveTo(0, radius*0.8);
+                ctx.quadraticCurveTo(radius, radius*0.5, 0, -radius*0.8);
+                ctx.quadraticCurveTo(-radius, radius*0.5, 0, radius*0.8);
+                ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, radius*0.8); ctx.lineTo(0, -radius*0.2); ctx.stroke();
+            }
+            else if (type === TYPE_OIL) {
+                ctx.fillStyle = '#cbd5e1'; ctx.strokeStyle = '#334155'; ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.moveTo(0, -radius*0.8);
+                ctx.bezierCurveTo(radius*0.8, 0, radius, radius*0.8, 0, radius*0.8);
+                ctx.bezierCurveTo(-radius, radius*0.8, -radius*0.8, 0, 0, -radius*0.8);
+                ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5;
+                ctx.moveTo(-radius*0.3, radius*0.2); ctx.quadraticCurveTo(-radius*0.4, radius*0.5, -radius*0.1, radius*0.6); ctx.stroke();
+            }
+            else if (type === TYPE_METAL) {
+                ctx.fillStyle = '#fef08a'; ctx.strokeStyle = '#eab308'; ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.ellipse(0, -radius*0.5, radius*0.5, radius*0.15, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.ellipse(0, radius*0.6, radius*0.5, radius*0.15, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(-radius*0.5, -radius*0.5); ctx.lineTo(-radius*0.5, radius*0.6); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(radius*0.5, -radius*0.5); ctx.lineTo(radius*0.5, radius*0.6); ctx.stroke();
+                ctx.fillRect(-radius*0.5, -radius*0.5, radius, radius*1.1);
+            }
+
+            // Рендер Бустеров
+            if (special === SPEC_ROW) {
+                let baseColor = type === TYPE_PLASTIC ? '#3b82f6' : type === TYPE_BIO ? '#22c55e' : type === TYPE_OIL ? '#334155' : '#eab308';
+                ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.beginPath(); ctx.roundRect(-radius, -radius*0.5, radius*2, radius, 4); ctx.fill();
+                ctx.strokeStyle = baseColor; ctx.lineWidth = 2.5; ctx.strokeRect(-radius, -radius*0.5, radius*2, radius);
+                ctx.fillStyle = baseColor;
+                ctx.beginPath(); ctx.moveTo(-radius*0.6, 0); ctx.lineTo(-radius*0.3, -radius*0.25); ctx.lineTo(-radius*0.3, radius*0.25); ctx.fill();
+                ctx.beginPath(); ctx.moveTo(radius*0.6, 0); ctx.lineTo(radius*0.3, -radius*0.25); ctx.lineTo(radius*0.3, radius*0.25); ctx.fill();
+            } else if (special === SPEC_AREA) {
+                let baseColor = type === TYPE_PLASTIC ? '#3b82f6' : type === TYPE_BIO ? '#22c55e' : type === TYPE_OIL ? '#334155' : '#eab308';
+                ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.beginPath(); ctx.roundRect(-radius*0.8, -radius*0.8, radius*1.6, radius*1.6, 6); ctx.fill();
+                ctx.strokeStyle = baseColor; ctx.lineWidth = 2.5; ctx.strokeRect(-radius*0.8, -radius*0.8, radius*1.6, radius*1.6);
+                ctx.fillStyle = baseColor;
+                ctx.fillRect(-radius*0.3, -radius*0.3, radius*0.6, radius*0.6);
+                ctx.beginPath(); ctx.arc(-radius*0.6, -radius*0.6, 2, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(radius*0.6, -radius*0.6, 2, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(-radius*0.6, radius*0.6, 2, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(radius*0.6, radius*0.6, 2, 0, Math.PI*2); ctx.fill();
+            }
+        }
+
+        function createParticles(x, y, type) {
+            let color = '#334155';
+            if (type === TYPE_PLASTIC) color = '#3b82f6';
+            if (type === TYPE_BIO) color = '#22c55e';
+            if (type === TYPE_OIL) color = '#64748b';
+            if (type === TYPE_METAL) color = '#eab308';
+            for (let i = 0; i < 8; i++) {
+                particles.push({
+                    x, y, vx: (Math.random() - 0.5) * 6, vy: (Math.random() - 0.5) * 6,
+                    life: 1, size: Math.random() * 4 + 2, color
+                });
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,95 @@
+{
+  "$comment": "Карточки трекера задач (ТЗ, п. 5 и 13.1). Новое направление = новая запись здесь + метка в js/script.js.",
+  "tasks": [
+    {
+      "id": "task_drone_01",
+      "title": "Обследование территории с помощью БПЛА",
+      "description": "Получить актуальные данные об участке",
+      "icon": "assets/ui/icons/icon_drone.jpg",
+      "iconLabel": "дрон",
+      "status": "available",
+      "label": "TaskDrone",
+      "tutorialId": "tutorial_drone_basic",
+      "knowledgeCheckId": "quiz_drone_01",
+      "minigame": { "type": "drone", "configId": "drone_level_01" },
+      "rewards": { "xp": 100, "reputation": 10 },
+      "unlockOnComplete": ["competency_drone_1"],
+      "next": ["task_imagery_01"]
+    },
+    {
+      "id": "task_imagery_01",
+      "title": "Работа со снимками",
+      "description": "Изучить материалы дистанционного наблюдения",
+      "icon": "assets/ui/icons/icon_satellite.jpg",
+      "iconLabel": "снимок",
+      "status": "available",
+      "label": "TaskImagery",
+      "tutorialId": "tutorial_imagery_basic",
+      "knowledgeCheckId": "quiz_imagery_01",
+      "minigame": { "type": "imageAnalysis", "configId": "imagery_level_01" },
+      "rewards": { "xp": 100, "reputation": 10 },
+      "unlockOnComplete": ["competency_imagery_1"],
+      "next": ["task_analysis_01"]
+    },
+    {
+      "id": "task_analysis_01",
+      "title": "Анализ полученных данных",
+      "description": "Проверить отмеченный участок и выбрать действие",
+      "icon": "assets/ui/icons/icon_analysis.jpg",
+      "iconLabel": "лупа",
+      "status": "available",
+      "label": "TaskAnalysis",
+      "tutorialId": "tutorial_analysis_basic",
+      "knowledgeCheckId": "quiz_analysis_01",
+      "minigame": { "type": "decisionCase", "configId": "decision_level_01" },
+      "rewards": { "xp": 120, "reputation": 10 },
+      "unlockOnComplete": ["competency_analyst_1"],
+      "next": ["task_cleanup_01"]
+    },
+    {
+      "id": "task_cleanup_01",
+      "title": "Очистка территории",
+      "description": "Провести уборку обнаруженного загрязнения",
+      "icon": "assets/ui/icons/icon_cleanup.svg",
+      "iconLabel": "переработка",
+      "status": "available",
+      "label": "TaskCleanup",
+      "tutorialId": "tutorial_cleanup_basic",
+      "knowledgeCheckId": "quiz_cleanup_01",
+      "minigame": { "type": "match3", "configId": "cleanup_level_01" },
+      "rewards": { "xp": 150, "reputation": 10 },
+      "unlockOnComplete": ["competency_cleanup_1"],
+      "next": ["task_real_event_01"]
+    },
+    {
+      "id": "task_real_event_01",
+      "title": "???",
+      "description": "Откроется позже",
+      "icon": "assets/ui/icons/icon_locked.svg",
+      "iconLabel": "событие",
+      "status": "locked",
+      "label": "TaskRealEvent",
+      "revealedTitle": "Массовая уборка территории",
+      "revealedDescription": "Реальная активность за пределами экрана",
+      "revealedIcon": "assets/ui/icons/icon_event.svg",
+      "minigame": null,
+      "rewards": { "xp": 0, "reputation": 0 },
+      "unlockOnComplete": [],
+      "next": []
+    }
+  ],
+
+  "competencies": {
+    "competency_drone_1": { "title": "Оператор БПЛА — I", "icon": "assets/ui/icons/icon_drone.jpg" },
+    "competency_imagery_1": { "title": "Работа со снимками — I", "icon": "assets/ui/icons/icon_satellite.jpg" },
+    "competency_analyst_1": { "title": "Аналитик — I", "icon": "assets/ui/icons/icon_analysis.jpg" },
+    "competency_cleanup_1": { "title": "Координатор уборки — I", "icon": "assets/ui/icons/icon_cleanup.svg" }
+  },
+
+  "accessLevels": [
+    { "id": "intern", "title": "Стажёр", "minXp": 0 },
+    { "id": "operator", "title": "Оператор", "minXp": 100 },
+    { "id": "analyst", "title": "Аналитик", "minXp": 250 },
+    { "id": "coordinator", "title": "Координатор", "minXp": 450 }
+  ]
+}

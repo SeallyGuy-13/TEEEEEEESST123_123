@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Восстановление снимка</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;900&display=swap" rel="stylesheet">
+    <style>
+        /* Адаптив размера поля с учетом высоты экрана */
+        :root { --board-size: min(90vw, 68vh, 420px); }
+        
+        body { font-family: 'Inter', sans-serif; overflow: hidden; user-select: none; touch-action: none; background-color: #0f172a; }
+        #game-area { background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%); }
+        
+        #puzzle-board {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: var(--board-size); height: var(--board-size);
+            background: rgba(15, 23, 42, 0.4); border-radius: 18px;
+            box-shadow: inset 0 0 30px rgba(0,0,0,0.5), 0 20px 50px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        
+        .board-cell { 
+            position: absolute; border: 2px dashed rgba(255, 255, 255, 0.12); border-radius: 12px; 
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .board-cell.cell-hover { 
+            background: rgba(56, 189, 248, 0.25); border-color: #38bdf8; border-style: solid; 
+        }
+        
+        .piece-wrap {
+            position: absolute; cursor: grab; border-radius: 12px; touch-action: none;
+            transition: left 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), top 0.35s cubic-bezier(0.2, 0.8, 0.2, 1); 
+            box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+        }
+        .piece-wrap.dragging {
+            cursor: grabbing; z-index: 100 !important; transition: none; 
+            transform: scale(1.08); box-shadow: 0 20px 30px rgba(0,0,0,0.6);
+        }
+        
+        .piece-wrap.tutorial-focus { 
+            z-index: 150 !important; 
+            box-shadow: 0 0 0 4px #38bdf8, 0 15px 40px rgba(8, 145, 178, 0.6) !important; 
+        }
+        .piece-wrap.tutorial-focus.dragging { 
+            transform: scale(1.08); 
+            box-shadow: 0 0 0 4px #38bdf8, 0 25px 50px rgba(8, 145, 178, 0.8) !important; 
+        }
+
+        .piece-inner {
+            width: 100%; height: 100%; border-radius: 12px;
+            background-size: var(--board-size) var(--board-size);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease;
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15); pointer-events: none; 
+        }
+        .piece-inner.correct { box-shadow: inset 0 0 0 4px #34d399, 0 0 20px rgba(52, 211, 153, 0.5); }
+        
+        .modal-enter { animation: modalPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        @keyframes modalPop {
+            0% { opacity: 0; transform: scale(0.9) translateY(20px); }
+            100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        /* Адаптив для горизонтальных экранов */
+        @media (max-height: 500px) and (orientation: landscape) {
+            :root { --board-size: min(85vw, 65vh, 400px); }
+            #ui-layer { padding: 6px; }
+            .modal-enter { padding: 16px 20px !important; border-radius: 16px !important; }
+            .modal-enter .w-20 { width: 40px !important; height: 40px !important; margin-bottom: 6px !important; }
+            .modal-enter svg.w-10 { width: 24px !important; height: 24px !important; }
+            .modal-enter h2 { font-size: 1.25rem !important; margin-bottom: 4px !important; }
+            .modal-enter p { font-size: 0.8rem !important; margin-bottom: 10px !important; line-height: 1.3 !important; }
+            .modal-enter button { padding: 8px !important; font-size: 0.9rem !important; border-radius: 12px !important; margin-bottom: 4px !important;}
+            #tut-tooltip { padding: 10px 14px !important; }
+            #tut-text { font-size: 0.8rem !important; }
+        }
+    </style>
+</head>
+<body class="text-slate-200 w-screen h-screen">
+    
+    <div id="ui-layer" class="absolute top-0 left-0 w-full p-4 md:p-6 z-10 pointer-events-none flex justify-center transition-all duration-300">
+        <div class="bg-slate-900/80 backdrop-blur-md border border-white/10 rounded-2xl px-5 py-2 sm:py-3 shadow-xl flex items-center gap-3">
+            <span class="bg-sky-500 text-[11px] sm:text-xs px-2.5 py-1 rounded-md text-white font-black uppercase tracking-wider shadow-sm">Снимок</span>
+            <span id="level-title" class="text-sky-400 font-black text-base sm:text-xl tracking-wide">1 (3x3)</span>
+        </div>
+        <button id="screenCloseBtn" onclick="askBeforeLeaving()" class="pointer-events-auto absolute top-4 right-4 w-10 h-10 rounded-full bg-slate-900/80 border border-white/10 text-slate-400 hover:text-white flex items-center justify-center transition-colors shadow-lg" aria-label="Вернуться к работе" title="Вернуться к работе">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+    </div>
+    
+    <div id="game-area" class="w-full h-full relative">
+        <div id="puzzle-board"></div>
+    </div>
+
+    <!-- Оверлей туториала -->
+    <div id="tut-dark-overlay" class="fixed inset-0 bg-slate-900/75 backdrop-blur-sm z-[140] opacity-0 pointer-events-none transition-opacity duration-300 flex items-center justify-center"></div>
+    
+    <div id="tut-tooltip" class="fixed z-[160] bg-white text-slate-800 p-4 sm:p-5 rounded-2xl shadow-2xl max-w-[280px] w-[90%] pointer-events-none transition-all duration-300 opacity-0 scale-90 border-2 border-sky-400 font-medium">
+        <div id="tut-arrow" class="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-white border-t-2 border-l-2 border-sky-400 transform rotate-45 transition-all duration-300"></div>
+        <p id="tut-text" class="text-sm sm:text-base text-center leading-relaxed"></p>
+    </div>
+    
+    <div id="modal-overlay" class="absolute inset-0 bg-slate-900/90 backdrop-blur-sm z-[200] hidden items-center justify-center p-4 transition-opacity duration-300 pointer-events-auto">
+        
+        <!-- Приветствие / обучение -->
+        <div id="modal-welcome" class="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-[92%] max-h-[95vh] overflow-x-hidden overflow-y-auto shadow-2xl text-center modal-enter relative hidden">
+            <div class="absolute -top-10 -right-10 w-32 h-32 bg-sky-100 rounded-full opacity-50 pointer-events-none"></div>
+            <div class="w-20 h-20 sm:w-24 sm:h-24 bg-sky-50 rounded-2xl flex items-center justify-center mx-auto mb-6 transform rotate-3 shadow-sm border border-sky-100">
+                <svg class="w-10 h-10 sm:w-12 sm:h-12 text-sky-500 transform -rotate-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2-1M4 7l2 1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5"></path>
+                </svg>
+            </div>
+            <h2 class="text-2xl sm:text-3xl font-black text-slate-800 mb-3">Восстановление снимка</h2>
+            <p class="text-slate-500 mb-6 font-medium leading-relaxed text-sm sm:text-base">Ваша задача — собрать изображение из фрагментов наблюдения. Пройдем небольшое обучение механике сборки.</p>
+            <button id="btn-start-welcome" class="w-full py-3.5 sm:py-4 bg-sky-500 hover:bg-sky-400 text-white font-black uppercase tracking-wider rounded-2xl shadow-[0_6px_0_rgb(3,105,161)] active:shadow-[0_0px_0_rgb(3,105,161)] active:translate-y-1.5 transition-all text-base sm:text-lg">
+                Начать обучение
+            </button>
+            <button id="btn-skip-welcome" class="mt-3 text-xs text-slate-400 hover:text-slate-600 font-medium py-1 transition-colors">
+                Пропустить обучение и играть
+            </button>
+        </div>
+
+        <!-- Переход между уровнями -->
+        <div id="modal-level1" class="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-[92%] max-h-[95vh] overflow-x-hidden overflow-y-auto shadow-2xl text-center modal-enter hidden">
+            <div class="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-100 shadow-sm">
+                <svg class="w-10 h-10 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+            </div>
+            <h2 class="text-2xl sm:text-3xl font-black text-slate-800 mb-2">Отлично!</h2>
+            <p class="text-slate-500 mb-8 font-medium leading-relaxed text-sm sm:text-base">Вы блестяще справились с первым снимком. Теперь сетка станет больше, а задача — масштабнее.</p>
+            <button id="btn-next-level" class="w-full py-3.5 sm:py-4 bg-emerald-500 hover:bg-emerald-400 text-white font-black uppercase tracking-wider rounded-2xl shadow-[0_6px_0_rgb(4,120,87)] active:shadow-[0_0px_0_rgb(4,120,87)] active:translate-y-1.5 transition-all text-base sm:text-lg">
+                Перейти к 5x5
+            </button>
+        </div>
+
+        <!-- Финальный попап (соответствует общему стилю игры: дрон, кейс, три в ряд) -->
+        <div id="modal-level2" class="bg-white rounded-3xl p-5 sm:p-6 max-w-sm w-[92%] max-h-[95vh] overflow-x-hidden overflow-y-auto shadow-2xl text-center modal-enter relative hidden">
+            <!-- Крестик закрытия -->
+            <button id="novelCloseBtn" onclick="askBeforeLeaving()" class="absolute top-3.5 right-3.5 w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 flex items-center justify-center transition-colors" aria-label="Вернуться к работе" title="Вернуться к работе">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+
+            <!-- Иконка успеха -->
+            <div class="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-3 border border-emerald-100 shadow-sm">
+                <svg class="w-8 h-8 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+            </div>
+            <h2 class="text-xl sm:text-2xl font-black text-slate-800 mb-1.5">Снимки собраны!</h2>
+            <p class="text-slate-500 mb-4 font-medium leading-relaxed text-xs sm:text-sm">Материалы наблюдения береговой зоны успешно восстановлены и переданы аналитикам.</p>
+            
+            <!-- Интеграция с курсом «Чистый берег» -->
+            <div id="finalCtaContainer" class="mt-4 pt-4 border-t border-slate-100 text-left">
+                <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-4 shadow-lg relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-24 h-24 bg-sky-500/20 rounded-full blur-2xl"></div>
+                    <h3 class="font-black text-white mb-1 text-base">Проект «Чистый берег»</h3>
+                    <p class="text-xs text-slate-300 mb-3 leading-relaxed">Хотите научиться читать настоящие спутниковые снимки и понимать, откуда берутся данные о загрязнениях? Программа бесплатная.</p>
+                    <a href="https://zaprirodu.ispring.ru/signup/LvEGzxy0_owor3LFnvf7L2qVk5I" target="_blank" rel="noopener noreferrer" class="block text-center w-full py-3 bg-sky-500 hover:bg-sky-400 text-white font-bold rounded-xl transition-colors shadow-lg shadow-sky-500/30 text-sm">
+                        Начать обучение
+                    </a>
+                </div>
+            </div>
+
+            <!-- Блок подтверждения перед выходом («Точно уходите?») -->
+            <div id="leaveWarning" class="hidden mt-3 pt-3 border-t border-slate-100 text-left">
+                <p class="text-xs text-slate-600 mb-2.5 leading-relaxed">
+                    <b class="text-slate-800">Точно уходите?</b> На курсе «Чистый берег» много интересного:
+                    как читать спутниковые снимки, откуда берутся данные о загрязнениях
+                    и что с ними делают дальше. Это бесплатно.
+                </p>
+                <div class="flex flex-col gap-2">
+                    <a href="https://zaprirodu.ispring.ru/signup/LvEGzxy0_owor3LFnvf7L2qVk5I" target="_blank" rel="noopener noreferrer" class="flex items-center justify-center text-center w-full min-h-[2.85rem] py-2.5 bg-sky-500 hover:bg-sky-400 text-white font-bold rounded-xl transition-colors text-sm">
+                        Посмотреть курс
+                    </a>
+                    <button id="confirmLeaveBtn" onclick="sendPuzzleResult()" class="flex items-center justify-center text-center w-full min-h-[2.85rem] py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold rounded-xl transition-colors text-sm">
+                        Вернуться к работе
+                    </button>
+                </div>
+            </div>
+
+            <!-- Кнопка возврата к новелле -->
+            <button id="puzzleInitialLeaveBtn" onclick="askBeforeLeaving()" class="mt-3.5 w-full min-h-[2.85rem] py-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold rounded-xl transition-colors text-sm">
+                Вернуться к работе
+            </button>
+
+            <!-- Кнопка рестарта (только для автономного запуска вне iframe) -->
+            <button id="btn-restart" class="hidden mt-2 w-full py-2 text-slate-400 hover:text-slate-600 font-medium text-xs transition-colors">
+                Сыграть заново
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const IN_IFRAME = window.parent !== window;
+        const COURSE_URL = 'https://zaprirodu.ispring.ru/signup/LvEGzxy0_owor3LFnvf7L2qVk5I';
+
+        const gameArea = document.getElementById('game-area');
+        const board = document.getElementById('puzzle-board');
+        const levelTitle = document.getElementById('level-title');
+        const modalOverlay = document.getElementById('modal-overlay');
+        const modWelcome = document.getElementById('modal-welcome');
+        const modLev1 = document.getElementById('modal-level1');
+        const modLev2 = document.getElementById('modal-level2');
+        const tutOverlay = document.getElementById('tut-dark-overlay');
+        const tutTooltip = document.getElementById('tut-tooltip');
+        const tutText = document.getElementById('tut-text');
+        const tutArrow = document.getElementById('tut-arrow');
+
+        document.getElementById('btn-start-welcome').addEventListener('click', () => { closeModal(); startInteractiveTutorial(); });
+        document.getElementById('btn-skip-welcome').addEventListener('click', () => { closeModal(); endTutorial(); isGameActive = true; });
+        document.getElementById('btn-next-level').addEventListener('click', () => { closeModal(); startLevel(2); });
+        document.getElementById('btn-restart').addEventListener('click', () => { closeModal(); startLevel(1); });
+
+        const IMAGES = {
+            1: 'level1.jpg',
+            2: 'level2.jpg'
+        };
+        const FALLBACK_URL = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop';
+
+        let currentLevel = 1, currentSize = 3;
+        let boardRect, pieceSize, cells = [], piecesData = []; 
+        let isGameActive = false, isBotSolving = false, tutStep = 0, tutTarget = null, hasSeenTutorial = false;
+        let cheatBuffer = [], lastClickTime = 0;
+
+        function postToHost (type, payload) {
+            if (IN_IFRAME) {
+                window.parent.postMessage({ type, payload }, '*');
+            }
+        }
+
+        function askBeforeLeaving () {
+            const warning = document.getElementById('leaveWarning');
+            const initialBtn = document.getElementById('puzzleInitialLeaveBtn');
+
+            if (modLev2.classList.contains('hidden')) {
+                showModal(modLev2);
+            }
+
+            if (warning && warning.classList.contains('hidden')) {
+                warning.classList.remove('hidden');
+                if (initialBtn) initialBtn.classList.add('hidden');
+                warning.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                return;
+            }
+
+            sendPuzzleResult();
+        }
+
+        function sendPuzzleResult () {
+            postToHost('PUZZLE_COMPLETE', {
+                status: 'completed',
+                score: 1000,
+                metrics: {
+                    levelsCompleted: currentLevel
+                }
+            });
+        }
+
+        window.addEventListener('message', (event) => {
+            const message = event.data || {};
+            if (message.type === 'PUZZLE_START') {
+                // Хост передал параметры запуска
+            }
+        });
+
+        function showModal(modalElem) {
+            modWelcome.classList.add('hidden'); modLev1.classList.add('hidden'); modLev2.classList.add('hidden');
+            modalElem.classList.remove('hidden');
+            modalOverlay.classList.remove('hidden'); modalOverlay.classList.add('flex');
+            isGameActive = false;
+        }
+
+        function closeModal() {
+            modalOverlay.classList.add('hidden'); modalOverlay.classList.remove('flex');
+        }
+
+        function initWhenReady() {
+            const rect = board.getBoundingClientRect();
+            if (!rect || rect.width < 10) {
+                requestAnimationFrame(initWhenReady);
+                return;
+            }
+            startLevel(1);
+            if (!hasSeenTutorial) showModal(modWelcome);
+            postToHost('PUZZLE_READY');
+        }
+
+        window.addEventListener('DOMContentLoaded', initWhenReady);
+
+        window.addEventListener('resize', () => {
+            if (piecesData.length > 0) calcBoardLayout();
+            if (tutStep > 0) setTimeout(positionTooltip, 400);
+        });
+
+        function startLevel(level) {
+            currentLevel = level;
+            currentSize = level === 1 ? 3 : 5;
+            levelTitle.textContent = `${level} (${currentSize}x${currentSize})`;
+            isBotSolving = false; isGameActive = true; 
+            board.innerHTML = '';
+            document.querySelectorAll('.piece-wrap').forEach(p => p.remove());
+            piecesData = [];
+            calcBoardLayout();
+            for (let i = 0; i < currentSize * currentSize; i++) createPiece(i);
+            shuffleBoard();
+            postToHost('PUZZLE_EVENT', { name: 'level', value: level });
+        }
+
+        function startInteractiveTutorial() {
+            isGameActive = true; tutStep = 1; tutTarget = piecesData[0]; 
+            tutTarget.inner.classList.remove('correct');
+            tutOverlay.classList.remove('pointer-events-none', 'opacity-0'); 
+            tutOverlay.classList.add('opacity-100');
+            tutOverlay.style.pointerEvents = 'auto';
+            tutTarget.el.classList.add('tutorial-focus');
+            updateTooltipText("Шаг 1: Перетащите этот фрагмент на любую ячейку в сетке.");
+            tutTooltip.classList.remove('opacity-0', 'scale-90'); tutTooltip.classList.add('opacity-100', 'scale-100');
+        }
+
+        function advanceTutorial(nextStep) {
+            tutStep = nextStep;
+            tutOverlay.classList.remove('opacity-0');
+            tutOverlay.classList.add('opacity-100');
+
+            if (tutStep === 2) updateTooltipText("Шаг 2: Супер! Если деталь мешает, отложите её. Перетащите деталь за пределы рамки (на стол).");
+            else if (tutStep === 3) updateTooltipText("Шаг 3: Отлично! И последнее: тапните (кликните) по детали, чтобы повернуть её на 90 градусов.");
+            else if (tutStep === 0) endTutorial();
+        }
+
+        function endTutorial() {
+            tutStep = 0; hasSeenTutorial = true;
+            if(tutTarget) tutTarget.el.classList.remove('tutorial-focus');
+            tutOverlay.classList.remove('opacity-100'); tutOverlay.classList.add('pointer-events-none', 'opacity-0');
+            tutOverlay.style.pointerEvents = 'none';
+            tutTooltip.classList.remove('opacity-100', 'scale-100'); tutTooltip.classList.add('opacity-0', 'scale-90');
+            updateCorrectHighlights(); checkWinCondition();
+        }
+
+        function updateTooltipText(text) {
+            tutText.innerText = text; setTimeout(positionTooltip, 50);
+        }
+
+        function positionTooltip() {
+            if (!tutTarget || tutStep === 0) return;
+            const rect = tutTarget.el.getBoundingClientRect(), tRect = tutTooltip.getBoundingClientRect();
+            let top = rect.bottom + 20, arrowTop = true;
+            if (top + tRect.height > window.innerHeight - 10) { top = rect.top - tRect.height - 20; arrowTop = false; }
+            if (top < 10) top = 10;
+            
+            let left = rect.left + rect.width / 2 - tRect.width / 2;
+            if (left < 10) left = 10;
+            if (left + tRect.width > window.innerWidth - 10) left = window.innerWidth - tRect.width - 10;
+            tutTooltip.style.left = left + 'px'; tutTooltip.style.top = top + 'px';
+            
+            if (arrowTop) {
+                tutArrow.style.top = '-8px'; tutArrow.style.bottom = 'auto';
+                tutArrow.style.transform = 'translate(-50%, 0) rotate(45deg)';
+                tutArrow.style.borderWidth = '2px 0 0 2px';
+            } else {
+                tutArrow.style.top = 'auto'; tutArrow.style.bottom = '-8px';
+                tutArrow.style.transform = 'translate(-50%, 0) rotate(45deg)';
+                tutArrow.style.borderWidth = '0 2px 2px 0';
+            }
+            let arrowLeft = (rect.left + rect.width / 2) - left;
+            arrowLeft = Math.max(20, Math.min(tRect.width - 20, arrowLeft));
+            tutArrow.style.left = arrowLeft + 'px';
+        }
+
+        function calcBoardLayout() {
+            boardRect = board.getBoundingClientRect();
+            const areaRect = gameArea.getBoundingClientRect();
+            pieceSize = boardRect.width / currentSize;
+            cells = []; board.innerHTML = '';
+            for (let i = 0; i < currentSize * currentSize; i++) {
+                const col = i % currentSize, row = Math.floor(i / currentSize);
+                const cLeft = (boardRect.left - areaRect.left) + col * pieceSize;
+                const cTop = (boardRect.top - areaRect.top) + row * pieceSize;
+                cells.push({ index: i, left: cLeft, top: cTop, right: cLeft + pieceSize, bottom: cTop + pieceSize });
+                
+                const cellDiv = document.createElement('div');
+                cellDiv.className = 'board-cell';
+                cellDiv.dataset.index = i;
+                cellDiv.style.width = pieceSize + 'px'; cellDiv.style.height = pieceSize + 'px';
+                cellDiv.style.left = (col * pieceSize) + 'px'; cellDiv.style.top = (row * pieceSize) + 'px';
+                board.appendChild(cellDiv);
+            }
+            piecesData.forEach(p => {
+                p.el.style.width = pieceSize + 'px'; p.el.style.height = pieceSize + 'px';
+                if (p.currentCell !== null) positionPieceOnCell(p.el, p.currentCell);
+            });
+        }
+
+        function createPiece(origIndex) {
+            const wrap = document.createElement('div'); wrap.className = 'piece-wrap';
+            wrap.style.width = pieceSize + 'px'; wrap.style.height = pieceSize + 'px';
+            const inner = document.createElement('div'); inner.className = 'piece-inner';
+            const col = origIndex % currentSize, row = Math.floor(origIndex / currentSize);
+            const xPercent = (col / (currentSize - 1)) * 100, yPercent = (row / (currentSize - 1)) * 100;
+            
+            inner.style.backgroundColor = '#334155';
+            inner.style.backgroundImage = `url('${IMAGES[currentLevel]}'), url('${FALLBACK_URL}')`;
+            inner.style.backgroundPosition = `${xPercent}% ${yPercent}%`;
+            
+            wrap.appendChild(inner); gameArea.appendChild(wrap);
+            const pieceObj = { el: wrap, inner: inner, origIndex: origIndex, currentCell: origIndex, rotation: 0 };
+            piecesData.push(pieceObj);
+            positionPieceOnCell(wrap, origIndex);
+            setupInteractions(pieceObj);
+        }
+
+        function positionPieceOnCell(wrap, cellIndex) {
+            const cell = cells[cellIndex];
+            wrap.style.left = cell.left + 'px'; wrap.style.top = cell.top + 'px';
+        }
+
+        function shuffleBoard() {
+            let cellIndices = cells.map(c => c.index);
+            for (let i = cellIndices.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [cellIndices[i], cellIndices[j]] = [cellIndices[j], cellIndices[i]];
+            }
+            let isPerfectShuffle = true;
+            piecesData.forEach((p, i) => {
+                p.currentCell = cellIndices[i]; p.rotation = Math.floor(Math.random() * 4) * 90;
+                p.inner.classList.remove('correct'); p.inner.style.transform = `rotate(${p.rotation}deg)`;
+                positionPieceOnCell(p.el, p.currentCell);
+                if (p.currentCell !== p.origIndex || p.rotation % 360 !== 0) isPerfectShuffle = false;
+            });
+            if(isPerfectShuffle) {
+               piecesData[0].rotation += 90; piecesData[0].inner.style.transform = `rotate(${piecesData[0].rotation}deg)`;
+            }
+            updateCorrectHighlights(); 
+        }
+
+        function updateCorrectHighlights() {
+            piecesData.forEach(p => {
+                const isCorrectPlaceAndRot = (p.origIndex === p.currentCell) && (p.rotation % 360 === 0);
+                if (isCorrectPlaceAndRot) {
+                    if (tutStep > 0 && p === tutTarget) return; 
+                    p.inner.classList.add('correct');
+                } else p.inner.classList.remove('correct');
+            });
+        }
+
+        function setupInteractions(pObj) {
+            const wrap = pObj.el;
+            let isDragging = false, startX = 0, startY = 0, startLeft = 0, startTop = 0;
+            
+            wrap.addEventListener('pointerdown', (e) => {
+                if (!isGameActive || isBotSolving) return;
+                if (tutStep > 0 && pObj !== tutTarget) return;
+
+                if (tutStep > 0 && pObj === tutTarget) {
+                    tutOverlay.classList.remove('opacity-100');
+                    tutOverlay.classList.add('opacity-0');
+                }
+
+                isDragging = false; startX = e.clientX; startY = e.clientY;
+                startLeft = parseFloat(wrap.style.left) || 0; startTop = parseFloat(wrap.style.top) || 0;
+                wrap.setPointerCapture(e.pointerId); wrap.style.zIndex = 100; 
+            });
+
+            wrap.addEventListener('pointermove', (e) => {
+                if (!wrap.hasPointerCapture(e.pointerId) || !isGameActive || isBotSolving) return;
+                const dx = e.clientX - startX, dy = e.clientY - startY;
+                if (!isDragging && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
+                    isDragging = true; wrap.classList.add('dragging');
+                }
+                if (isDragging) {
+                    wrap.style.left = (startLeft + dx) + 'px'; wrap.style.top = (startTop + dy) + 'px';
+                    
+                    const rect = wrap.getBoundingClientRect(), areaRect = gameArea.getBoundingClientRect();
+                    const cx = (rect.left - areaRect.left) + rect.width / 2, cy = (rect.top - areaRect.top) + rect.height / 2;
+                    let hoveredCell = null;
+                    for (let c of cells) {
+                        if (cx > c.left && cx < c.right && cy > c.top && cy < c.bottom) { hoveredCell = c.index; break; }
+                    }
+                    if (wrap.dataset.lastHover !== String(hoveredCell)) {
+                        document.querySelectorAll('.board-cell').forEach(el => el.classList.remove('cell-hover'));
+                        if (hoveredCell !== null) document.querySelector(`.board-cell[data-index="${hoveredCell}"]`)?.classList.add('cell-hover');
+                        wrap.dataset.lastHover = hoveredCell;
+                    }
+                }
+            });
+
+            wrap.addEventListener('pointerup', (e) => {
+                if (!isGameActive || isBotSolving) return;
+                wrap.releasePointerCapture(e.pointerId);
+                wrap.style.zIndex = ''; wrap.classList.remove('dragging');
+                document.querySelectorAll('.board-cell').forEach(el => el.classList.remove('cell-hover'));
+                wrap.dataset.lastHover = '';
+                
+                if (isDragging) handleDrop(pObj, startLeft, startTop);
+                else handleRotate(pObj);
+            });
+        }
+
+        function handleDrop(pObj, startLeft, startTop) {
+            const wrap = pObj.el, rect = wrap.getBoundingClientRect(), areaRect = gameArea.getBoundingClientRect();
+            const cx = (rect.left - areaRect.left) + rect.width / 2, cy = (rect.top - areaRect.top) + rect.height / 2;
+            let targetCell = null;
+            for (let c of cells) {
+                if (cx > c.left && cx < c.right && cy > c.top && cy < c.bottom) { targetCell = c.index; break; }
+            }
+            
+            if (targetCell !== null) {
+                const occupant = piecesData.find(p => p.currentCell === targetCell && p !== pObj);
+                if (occupant) {
+                    occupant.currentCell = pObj.currentCell;
+                    if (occupant.currentCell !== null) positionPieceOnCell(occupant.el, occupant.currentCell);
+                    else { occupant.el.style.left = startLeft + 'px'; occupant.el.style.top = startTop + 'px'; }
+                }
+                pObj.currentCell = targetCell;
+                positionPieceOnCell(wrap, targetCell);
+            } else pObj.currentCell = null;
+            
+            updateCorrectHighlights();
+            
+            if (tutStep > 0 && pObj === tutTarget) {
+                tutOverlay.classList.remove('opacity-0');
+                tutOverlay.classList.add('opacity-100');
+
+                if (tutStep === 1) {
+                    if (targetCell !== null) advanceTutorial(2);
+                    else updateTooltipText("Это стол. Перетащите деталь обратно в сетку!");
+                } else if (tutStep === 2) {
+                    if (targetCell === null) advanceTutorial(3);
+                    else updateTooltipText("Теперь вытащите деталь за пределы рамки (на свободный стол).");
+                }
+                setTimeout(positionTooltip, 350);
+            } else checkWinCondition();
+        }
+
+        function handleRotate(pObj) {
+            if (tutStep > 0 && pObj === tutTarget) {
+                tutOverlay.classList.remove('opacity-0');
+                tutOverlay.classList.add('opacity-100');
+            }
+
+            if (tutStep === 1 || tutStep === 2) {
+                tutTooltip.classList.add('scale-105'); setTimeout(() => tutTooltip.classList.remove('scale-105'), 200);
+                return;
+            }
+            pObj.rotation += 90; pObj.inner.style.transform = `rotate(${pObj.rotation}deg)`;
+            updateCorrectHighlights();
+            
+            if (tutStep === 3 && pObj === tutTarget) advanceTutorial(0);
+            else checkWinCondition();
+            
+            checkCheatCode(pObj);
+        }
+
+        function checkCheatCode(pObj) {
+            const now = Date.now();
+            if (now - lastClickTime > 2000) cheatBuffer = []; 
+            lastClickTime = now;
+            const trIndex = currentSize - 1, tlIndex = 0;               
+            if (pObj.currentCell === trIndex) cheatBuffer.push('TR');
+            else if (pObj.currentCell === tlIndex) cheatBuffer.push('TL');
+            else cheatBuffer.push('OTHER');
+            if (cheatBuffer.length > 5) cheatBuffer.shift(); 
+            if (cheatBuffer.join(',') === 'TR,TR,TR,TL,TL') { cheatBuffer = []; triggerBotSolve(); }
+        }
+
+        function triggerBotSolve() {
+            isBotSolving = true; let delay = 0; const step = 2000 / piecesData.length;
+            piecesData.forEach((p, i) => {
+                setTimeout(() => {
+                    p.currentCell = p.origIndex; p.rotation = 0;
+                    p.inner.style.transform = `rotate(0deg)`;
+                    positionPieceOnCell(p.el, p.origIndex);
+                    updateCorrectHighlights();
+                    if (i === piecesData.length - 1) setTimeout(() => { isBotSolving = false; checkWinCondition(); }, 300);
+                }, delay);
+                delay += step;
+            });
+        }
+
+        function checkWinCondition() {
+            if (!isGameActive || isBotSolving || tutStep > 0) return; 
+            let isWin = true;
+            piecesData.forEach(p => { if ((p.origIndex !== p.currentCell) || (p.rotation % 360 !== 0)) isWin = false; });
+            if (isWin) {
+                isGameActive = false; 
+                setTimeout(() => {
+                    if (currentSize === 3) showModal(modLev1);
+                    else showModal(modLev2);
+                }, 600);
+            }
+        }
+    </script>
+</body>
+</html>

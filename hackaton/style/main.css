@@ -1,0 +1,646 @@
+/**
+ * Базовая тема игры и правки поверх стилей Monogatari.
+ * Всё, что относится к нашим оверлеям, вынесено в ui.css и minigames.css.
+ */
+
+:root {
+	--bg: #0e1b16;
+	--bg-soft: #14261f;
+	--panel: rgba(255, 255, 255, 0.06);
+	--panel-solid: #1a2f27;
+	--border: rgba(255, 255, 255, 0.14);
+	--text: #eaf3ee;
+	--muted: #9fb3aa;
+	--accent: #43c59e;
+	--accent-dark: #2c9d7c;
+	--warn: #f0a44b;
+	--bad: #e5695f;
+	--radius: 0.9rem;
+	--shadow: 0 1.25rem 3rem rgba(0, 0, 0, 0.45);
+
+	/* Переменные темы Monogatari */
+	--main-color: #43c59e;
+	--font: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+}
+
+html, body {
+	margin: 0;
+	padding: 0;
+	height: 100%;
+	background: var(--bg);
+	color: var(--text);
+	font-family: var(--font);
+	overscroll-behavior: none;
+}
+
+#monogatari {
+	width: 100%;
+	height: 100%;
+}
+
+/* --- Текстовое окно диалога ------------------------------------------- */
+
+text-box {
+	/* Без backdrop-filter — по той же причине, что и у оверлеев: отдельный слой
+	   композитинга иногда «съедает» текст до первой перерисовки. */
+	background-color: rgba(12, 24, 20, 0.95);
+	border-top: 1px solid var(--border);
+	color: var(--text);
+	/* Имя + текст на одной строке через flex */
+	display: flex !important;
+	flex-direction: row !important;
+	align-items: baseline;
+	gap: 1rem;
+	padding: 1rem 1.5rem !important;
+	min-height: 22% !important;
+	max-height: 26% !important;
+	font-size: clamp(1.05rem, 2.6vw, 1.3rem);
+	line-height: 1.6;
+	box-sizing: border-box;
+}
+
+/* Имя говорящего — слева, не переносится */
+text-box [data-content="name"] {
+	flex-shrink: 0;
+	padding: 0 !important;
+	font-weight: 700;
+	font-size: 1.05em;
+	letter-spacing: 0.03em;
+	white-space: nowrap;
+	/* цветная черта слева */
+	border-left: 3px solid currentColor;
+	padding-left: 0.5rem !important;
+	line-height: inherit;
+}
+
+/* Текст — справа от имени, занимает всё место */
+text-box [data-content="text"] {
+	flex: 1;
+	min-width: 0;
+}
+
+text-box type-writer,
+text-box p {
+	padding: 0 !important;
+	margin: 0;
+	font-size: inherit;
+}
+
+
+/* --- Варианты ответа --------------------------------------------------- */
+
+choice-container button,
+[data-choice] button {
+	min-height: 2.75rem;
+	font-size: clamp(0.9rem, 2.2vw, 1.05rem);
+	line-height: 1.35;
+	white-space: normal;
+	text-align: left;
+}
+
+/* --- Главное меню ------------------------------------------------------ */
+main-screen {
+	position: relative;
+	isolation: isolate;
+	box-sizing: border-box;
+	background: linear-gradient(90deg, rgba(7,22,19,.98) 0%, rgba(7,22,19,.94) 35%, rgba(7,22,19,.25) 100%), url('../assets/scenes/office.jpg') center / cover;
+	align-items: flex-start;
+	justify-content: center;
+	padding: 6vh 7vw;
+	gap: 2.5vh;
+	overflow: auto;
+}
+main-screen::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+	z-index: -1;
+	pointer-events: none;
+	background: linear-gradient(0deg, #071613, transparent 35%);
+}
+.title-card { position: relative; z-index: 1; width: min(58vw, 800px); text-align: left; }
+.title-card__kicker { display: flex; align-items: center; gap: 10px; color: #a4c7b6; font-size: clamp(10px, .85vw, 13px); letter-spacing: .15em; margin: 0 0 3vh; }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; background: #bde885; box-shadow: 0 0 16px #bde88580; flex-shrink: 0; }
+.title-card__title { color: #f5f7ed; font-size: clamp(32px, 4.4vw, 76px); font-weight: 650; line-height: 1.08; letter-spacing: -.055em; margin: 0 0 2.5vh; }
+.title-card__title span { color: #bde885; }
+.title-card__subtitle { color: #acbfb3; max-width: 430px; font-size: clamp(13px, 1.1vw, 17px); line-height: 1.7; margin: 0; }
+main-menu { position: static; z-index: 1; align-self: flex-start; width: min(350px, 42vw); background: transparent; padding: 0; }
+main-menu button { position: relative; box-sizing: border-box; width: 100%; min-height: 46px; margin: 5px 0; padding: 13px 22px; border: 1px solid #b6dbc324; border-radius: 12px; background: #cfebd909; color: #dceade; text-align: left; font: 500 15px var(--font); transition: background .2s, border-color .2s, transform .2s, box-shadow .2s; backdrop-filter: blur(12px); }
+main-menu button:hover { background: #cfebd91c; border-color: #bde88580; transform: translateX(4px); }
+main-menu button[data-action="start"] { color: #142317; background: #bde885; border-color: #bde885; font-weight: 700; box-shadow: 0 6px 28px #bde88515; }
+main-menu button[data-action="start"]::after { content: '↗'; position: absolute; right: 22px; font-size: 21px; top: 9px; }
+main-menu button[data-action="start"]:hover { background: #cef59d; box-shadow: 0 8px 30px #bde88530; }
+main-menu button:focus-visible, choice-container button:focus-visible { outline: 2px solid #d6ffa9; outline-offset: 4px; }
+.menu-art { position: absolute; right: 0; bottom: 0; width: 49%; height: 94%; z-index: -1; pointer-events: none; background: url('../assets/characters/hero/normal.png') center bottom / contain no-repeat; filter: drop-shadow(0 20px 50px #0006); }
+.menu-caption { position: absolute; right: 5vw; bottom: 4vh; display: flex; flex-direction: column; gap: 10px; text-align: right; color: #f1f4e7; }
+.menu-caption span { color: #bde885; font-size: 10px; letter-spacing: .2em; }
+.menu-caption strong { font-size: 14px; font-weight: 400; }
+choice-container button { border: 1px solid #a9cfbc40; border-radius: 12px; background: #11271fee; color: #eef6ef; padding: 15px 22px; box-shadow: 0 8px 24px #0003; transition: background .2s, border-color .2s; }
+choice-container button:hover { background: #254537; border-color: #bde885; }
+@media (max-width: 700px) {
+	main-screen { padding: 6vh 7vw; background: linear-gradient(90deg, #071613f5, #071613c9), url('../assets/scenes/office.jpg') center / cover; }
+	.title-card { width: 100%; }
+	.title-card__title { font-size: clamp(30px, 7vw, 46px); }
+	.title-card__kicker { font-size: 9px; letter-spacing: .06em; }
+	.title-card__subtitle { max-width: 90%; }
+	main-menu { width: min(350px, 86vw); }
+	.menu-art { width: 85%; right: -20%; opacity: .18; }
+	.menu-caption { display: none; }
+}
+@media (max-height: 650px) and (min-width: 701px) {
+	main-screen { padding-top: 3vh; padding-bottom: 3vh; gap: 1vh; }
+	.title-card__kicker { margin-bottom: 2vh; }
+	.title-card__title { font-size: 5.5vh; margin-bottom: 1.5vh; }
+	main-menu button { min-height: 36px; padding: 8px 18px; margin: 3px 0; }
+}
+/* Страховка: если браузер всё же отклонит автовоспроизведение, движок
+   выводит поверх игры плашку «Включить звуковое сопровождение». Звук у нас
+   стартует после первого клика игрока, поэтому плашка только мешает. */
+[data-ui="broadcast"][data-content="allow-playback"] {
+	display: none !important;
+}
+
+/* --- Информационные окна сценария -------------------------------------- */
+
+.chain {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.35rem;
+	align-items: center;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+}
+
+.chain span {
+	padding: 0.2rem 0.55rem;
+	background: rgba(67, 197, 158, 0.16);
+	border-radius: 0.4rem;
+}
+
+/* --- Экран фатальной ошибки загрузки данных ---------------------------- */
+
+.fatal-error {
+	position: fixed;
+	inset: 0;
+	z-index: 999;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 1.5rem;
+	background: rgba(8, 14, 12, 0.94);
+}
+
+.fatal-error__card {
+	max-width: 34rem;
+	padding: 1.5rem;
+	background: var(--panel-solid);
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+}
+
+.fatal-error h2 {
+	margin-top: 0;
+	color: var(--bad);
+}
+
+.fatal-error pre {
+	padding: 0.75rem;
+	overflow-x: auto;
+	background: rgba(0, 0, 0, 0.35);
+	border-radius: 0.5rem;
+	color: var(--muted);
+	font-size: 0.8rem;
+}
+
+.fatal-error__hint {
+	color: var(--muted);
+	font-size: 0.9rem;
+}
+
+/* --- Адаптив ----------------------------------------------------------- */
+
+/* Телефон в портретной ориентации: диалог занимает нижнюю половину экрана. */
+@media (max-width: 640px) and (orientation: portrait) {
+	text-box {
+		max-height: 45vh;
+	}
+
+	game-screen [data-character] {
+		max-height: 55%;
+	}
+}
+
+/* Уважаем системную настройку «уменьшить движение». */
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		transition-duration: 0.01ms !important;
+	}
+}
+
+
+/* =========================================================================
+   ПЕРСОНАЖИ — крупный масштаб и позиционирование вплотную к краям экрана
+   ========================================================================= */
+
+game-screen [data-character],
+game-screen character-sprite,
+game-screen [data-sprite] {
+	position: absolute !important;
+	top: 0 !important;                /* верх фрейма строго у верхнего края экрана */
+	bottom: auto !important;
+	height: 102vh !important;         /* персонажи крупные, ноги естественно уходят за диалог */
+	max-height: none !important;
+	width: auto !important;
+	max-width: none !important;
+	margin: 0 !important;
+	object-fit: contain !important;
+	mix-blend-mode: normal !important;
+	pointer-events: none;
+	z-index: 5 !important;
+	transition: filter 0.25s ease, opacity 0.25s ease;
+}
+
+game-screen [data-character] img,
+game-screen character-sprite img {
+	height: 100% !important;
+	max-height: none !important;
+	width: auto !important;
+	max-width: none !important;
+	object-fit: contain !important;
+	mix-blend-mode: normal !important;
+}
+
+/* --- Главный герой (y) — строго к левому краю, верх к верхнему краю --- */
+game-screen [data-character="y"],
+game-screen [data-character].left,
+game-screen [data-sprite].left,
+game-screen character-sprite[data-character="y"] {
+	left: -3vw !important;            /* компенсация прозрачного поля PNG */
+	right: auto !important;
+	top: 0 !important;
+	bottom: auto !important;
+	margin-left: 0 !important;
+	margin-right: auto !important;
+	object-position: top left !important;
+	transform-origin: top left;
+}
+
+game-screen [data-character="y"] img,
+game-screen [data-character].left img,
+game-screen [data-sprite].left img,
+game-screen character-sprite[data-character="y"] img {
+	object-position: top left !important;
+	transform-origin: top left;
+}
+
+/* --- Собеседник (НПС) — строго к правому краю, верх к верхнему краю --- */
+game-screen [data-character]:not([data-character="y"]),
+game-screen [data-character].right,
+game-screen [data-sprite].right,
+game-screen character-sprite:not([data-character="y"]) {
+	right: -2.5vw !important;         /* компенсация прозрачного поля PNG */
+	left: auto !important;
+	top: 0 !important;
+	bottom: auto !important;
+	margin-right: 0 !important;
+	margin-left: auto !important;
+	object-position: top right !important;
+	transform-origin: top right;
+}
+
+game-screen [data-character]:not([data-character="y"]) img,
+game-screen [data-character].right img,
+game-screen [data-sprite].right img,
+game-screen character-sprite:not([data-character="y"]) img {
+	object-position: top right !important;
+	transform-origin: top right;
+}
+
+/* Центрирование (если используется) */
+game-screen [data-position="center"],
+game-screen [data-sprite].center {
+	left: 50% !important;
+	right: auto !important;
+	top: 0 !important;
+	bottom: auto !important;
+	transform: translateX(-50%) !important;
+	object-position: top center !important;
+}
+
+/* --- Подсветка говорящего и затемнение молчащего ----------------------- */
+/* По умолчанию (когда никто не говорит или выбор реплики) — оба видны чётко */
+game-screen [data-character] {
+	filter: brightness(1) saturate(1);
+	opacity: 1;
+	transition: filter 0.25s ease, opacity 0.25s ease;
+}
+
+/* Когда один из персонажей говорит (получает класс .focus или data-speaking) —
+   остальные мягко приглушаются. */
+game-screen:has([data-character].focus) [data-character]:not(.focus),
+game-screen[data-speaking] [data-character] {
+	filter: brightness(0.45) saturate(0.55);
+	opacity: 0.75;
+}
+
+game-screen [data-character].focus,
+game-screen[data-speaking="y"] [data-character="y"],
+game-screen[data-speaking="m"] [data-character="m"],
+game-screen[data-speaking="o"] [data-character="o"],
+game-screen[data-speaking="a"] [data-character="a"],
+game-screen[data-speaking="c"] [data-character="c"] {
+	filter: brightness(1.05) saturate(1.1) !important;
+	opacity: 1 !important;
+}
+
+/* --- Адаптив телефон ---------------------------------------------------- */
+@media (max-width: 640px) and (orientation: portrait) {
+	game-screen [data-character],
+	game-screen character-sprite {
+		height: 90% !important;
+		max-height: 90% !important;
+		bottom: -4% !important;
+	}
+}
+
+/* --- Иконки задач в трекере --------------------------------------------- */
+.task-card__icon-img {
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+	border-radius: 0.4rem;
+}
+
+quick-menu { background: rgba(9, 25, 20, .96); border-top: 1px solid #b6dbc324; }
+quick-menu button { border-radius: 8px; color: #bdd1c4; transition: color .2s, background .2s; }
+quick-menu button:hover { background: #bde88518; color: #d7f5af; }
+
+/* =========================================================================
+   Информационные сообщения движка (message-modal) — читаемая тёмная тема
+   ========================================================================= */
+.modal.modal--active,
+message-modal.modal {
+	background-color: rgba(6, 14, 11, 0.85) !important;
+	backdrop-filter: blur(8px) !important;
+	display: flex !important;
+	align-items: center !important;
+	justify-content: center !important;
+	z-index: 9999 !important;
+}
+
+.modal .modal__content,
+message-modal .modal__content,
+message-modal [data-ui="message-content"] {
+	position: relative !important;
+	top: auto !important;
+	left: auto !important;
+	transform: none !important;
+	background: #14261f !important;
+	background-color: #14261f !important;
+	color: #eaf3ee !important;
+	border: 1px solid rgba(67, 197, 158, 0.35) !important;
+	border-radius: 1rem !important;
+	box-shadow: 0 1.25rem 3.5rem rgba(0, 0, 0, 0.65) !important;
+	max-width: min(92vw, 36rem) !important;
+	width: 100% !important;
+	padding: 1.75rem !important;
+	text-align: center !important;
+	box-sizing: border-box !important;
+	line-height: 1.6 !important;
+}
+
+message-modal [data-content="title"],
+message-modal h2, message-modal h3 {
+	color: #55d6ae !important;
+	font-size: clamp(1.2rem, 3.5vw, 1.5rem) !important;
+	font-weight: 700 !important;
+	margin: 0 0 0.35rem 0 !important;
+}
+
+message-modal [data-content="subtitle"],
+message-modal h4 {
+	color: #9fb3aa !important;
+	font-size: 0.95rem !important;
+	font-weight: 500 !important;
+	margin: 0 0 1.1rem 0 !important;
+}
+
+message-modal [data-content="body"],
+message-modal p {
+	color: #d8e8df !important;
+	font-size: 0.96rem !important;
+	line-height: 1.6 !important;
+	margin: 0.5rem 0 !important;
+}
+
+message-modal .chain {
+	display: flex !important;
+	flex-wrap: wrap !important;
+	gap: 0.45rem !important;
+	align-items: center !important;
+	justify-content: center !important;
+	margin: 1.25rem 0 !important;
+	font-weight: 700 !important;
+	font-size: 0.9rem !important;
+	color: #9fb3aa !important;
+}
+
+message-modal .chain span {
+	background: rgba(67, 197, 158, 0.2) !important;
+	color: #55d6ae !important;
+	border: 1px solid rgba(67, 197, 158, 0.45) !important;
+	border-radius: 0.5rem !important;
+	padding: 0.35rem 0.75rem !important;
+	display: inline-block !important;
+}
+
+message-modal button,
+.modal .modal__content button {
+	display: inline-flex !important;
+	align-items: center !important;
+	justify-content: center !important;
+	margin: 1.25rem auto 0 auto !important;
+	padding: 0.7rem 2.2rem !important;
+	background: #43c59e !important;
+	color: #07130f !important;
+	font-weight: 700 !important;
+	font-size: 0.98rem !important;
+	border-radius: 0.6rem !important;
+	border: none !important;
+	cursor: pointer !important;
+	box-shadow: 0 0.25rem 1rem rgba(67, 197, 158, 0.3) !important;
+	transition: background 0.15s ease, transform 0.1s ease !important;
+}
+
+message-modal button:hover,
+.modal .modal__content button:hover {
+	background: #55d6ae !important;
+	transform: translateY(-1px) !important;
+}
+
+/* =========================================================================
+   АДАПТИВНОСТЬ — телефоны, планшеты и низкие окна
+   ========================================================================= */
+
+html,
+body,
+#monogatari,
+visual-novel,
+game-screen {
+	width: 100%;
+	height: 100%;
+	height: 100dvh;
+	min-height: 0;
+}
+
+/* Системные экраны движка должны прокручиваться, если содержимое выше окна. */
+settings-screen,
+save-screen,
+load-screen,
+help-screen,
+credits-screen,
+gallery-screen {
+	box-sizing: border-box;
+	max-height: 100dvh;
+	overflow-x: hidden;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	-webkit-overflow-scrolling: touch;
+}
+
+choice-container {
+	box-sizing: border-box;
+	max-height: calc(100dvh - 1rem) !important;
+	overflow-y: auto;
+	padding: clamp(.5rem, 2vw, 1rem);
+	overscroll-behavior: contain;
+}
+
+choice-container button,
+[data-choice] button {
+	height: auto !important;
+	min-height: 44px;
+	max-width: 100%;
+	margin: .35rem;
+	box-sizing: border-box;
+	overflow-wrap: anywhere;
+}
+
+message-modal .modal__content {
+	max-height: calc(100dvh - 1rem) !important;
+	overflow-y: auto !important;
+	overscroll-behavior: contain;
+}
+
+@media (max-width: 700px) {
+	body { overflow: hidden; }
+
+	main-screen {
+		min-height: 100dvh;
+		justify-content: flex-start;
+		padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right))
+			max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+		gap: .75rem;
+	}
+
+	.title-card__kicker { margin-bottom: .9rem; }
+	.title-card__title { margin-bottom: .75rem; }
+	.title-card__subtitle { line-height: 1.5; }
+	main-menu { width: 100%; max-width: 24rem; }
+	main-menu button { min-height: 44px; margin: 3px 0; padding: 10px 18px; }
+
+	/* На телефоне имя располагается над репликой, а сама реплика прокручивается. */
+	text-box {
+		bottom: var(--quick-menu-height, 3rem) !important;
+		display: flex !important;
+		flex-direction: column !important;
+		align-items: stretch !important;
+		gap: .3rem;
+		width: 100% !important;
+		height: auto !important;
+		min-height: 30dvh !important;
+		max-height: 48dvh !important;
+		padding: .75rem max(1rem, env(safe-area-inset-right)) .75rem max(1rem, env(safe-area-inset-left)) !important;
+		font-size: clamp(.98rem, 4vw, 1.08rem);
+		line-height: 1.45;
+		overflow: hidden !important;
+	}
+
+	text-box [data-content="name"] {
+		width: auto !important;
+		white-space: normal;
+		font-size: .92em;
+	}
+
+	text-box [data-content="text"] {
+		display: block !important;
+		min-height: 0;
+		overflow-y: auto !important;
+		overscroll-behavior: contain;
+		-webkit-overflow-scrolling: touch;
+	}
+
+	text-box [data-content="dialog"],
+	text-box [data-ui="say"] { padding: 0 !important; }
+
+	quick-menu {
+		top: auto !important;
+		bottom: 0 !important;
+		height: auto !important;
+		min-height: var(--quick-menu-height, 3rem);
+		max-height: none !important;
+		overflow-x: auto;
+		overflow-y: hidden;
+		justify-content: flex-start !important;
+		padding-left: max(.25rem, env(safe-area-inset-left));
+		padding-right: max(.25rem, env(safe-area-inset-right));
+		padding-bottom: env(safe-area-inset-bottom);
+		box-sizing: border-box;
+		white-space: nowrap;
+	}
+
+	quick-menu button {
+		flex: 0 0 auto;
+		width: auto !important;
+		height: 42px !important;
+		min-width: 42px;
+		margin: 0 !important;
+		padding: 0 .55rem !important;
+		font-size: .78rem;
+	}
+
+	choice-container { width: calc(100% - 1rem) !important; }
+	choice-container button { width: 100% !important; margin: .25rem 0; padding: .75rem 1rem; }
+
+	message-modal .modal__content,
+	message-modal [data-ui="message-content"] {
+		max-width: calc(100vw - 1rem) !important;
+		padding: 1rem !important;
+	}
+
+	message-modal .chain { font-size: .78rem !important; gap: .3rem !important; }
+	message-modal .chain span { padding: .25rem .45rem !important; }
+}
+
+/* Низкие альбомные экраны: сохраняем место для реплики и даём ей прокрутку. */
+@media (max-height: 520px) and (orientation: landscape) {
+	text-box {
+		min-height: 34dvh !important;
+		max-height: 46dvh !important;
+		padding: .55rem 1rem !important;
+		font-size: clamp(.85rem, 2.2vw, 1rem);
+		line-height: 1.35;
+		overflow-y: auto !important;
+	}
+
+	choice-container {
+		top: 33dvh !important;
+		width: min(92vw, 44rem) !important;
+		max-height: 42dvh !important;
+	}
+	choice-container button { min-height: 40px; padding: .55rem .9rem; }
+	message-modal .modal__content { max-height: calc(100dvh - .5rem) !important; padding: .8rem !important; }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "eco-monitoring-novel",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Визуальная новелла о технологиях экологического мониторинга на Monogatari + мини-игры на JS",
+  "scripts": {
+    "start": "npx --yes serve . -l 5173",
+    "assets": "node tools/generate-placeholders.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

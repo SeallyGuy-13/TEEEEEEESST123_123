@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720" role="img" aria-label="Береговая линия (болванка)">
+	<defs>
+		<linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+			<stop offset="0" stop-color="#1d4a63"/>
+			<stop offset="1" stop-color="#c9b087"/>
+		</linearGradient>
+	</defs>
+	<rect width="1280" height="720" fill="url(#bg)"/>
+	
+			<path d="M0 380 Q320 340 640 380 T1280 380 L1280 460 L0 460Z" fill="#2a7ba0" opacity="0.55"/>
+			<path d="M0 440 Q320 410 640 445 T1280 435 L1280 720 L0 720Z" fill="#c9b087" opacity="0.75"/>
+			<circle cx="330" cy="560" r="16" fill="#e5695f" opacity="0.5"/>
+			<circle cx="880" cy="520" r="13" fill="#e5695f" opacity="0.45"/>
+	<text x="40" y="60" font-family="system-ui, sans-serif" font-size="26" fill="#eaf3ee" opacity="0.55">Береговая линия</text>
+	<text x="40" y="92" font-family="system-ui, sans-serif" font-size="18" fill="#eaf3ee" opacity="0.35">временный фон — заменяется файлом с тем же именем</text>
+</svg>

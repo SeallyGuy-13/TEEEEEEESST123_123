@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600" role="img" aria-label="Кейс: подтверждённое скопление">
+	<defs>
+		<linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+			<stop offset="0" stop-color="#25402f"/>
+			<stop offset="1" stop-color="#a8946f"/>
+		</linearGradient>
+	</defs>
+	<rect width="800" height="600" fill="url(#bg)"/>
+	
+			<path d="M0 260 L800 240 L800 600 L0 600Z" fill="#a8946f" opacity="0.8"/>
+			<g opacity="0.9">
+				<circle cx="280" cy="400" r="14" fill="#e8eef2"/>
+				<circle cx="320" cy="425" r="12" fill="#7fc4a0"/>
+				<circle cx="255" cy="440" r="11" fill="#d9c27a"/>
+				<circle cx="360" cy="395" r="10" fill="#e8eef2"/>
+				<circle cx="400" cy="440" r="13" fill="#a8c8d8"/>
+				<rect x="470" y="400" width="60" height="34" rx="6" fill="#8a8f7a"/>
+			</g>
+	<text x="24" y="40" font-family="system-ui, sans-serif" font-size="24" fill="#eaf3ee" opacity="0.7">Кейс: подтверждённое скопление</text>
+	<text x="24" y="68" font-family="system-ui, sans-serif" font-size="16" fill="#eaf3ee" opacity="0.45">наземная проверка · 200 м²</text>
+</svg>

@@ -1,0 +1,1 @@
+monogatari.settings({ Label: new URLSearchParams(location.search).get('label') || 'ImageryResult', AutoSave: 0, Storage: { Adapter: 'LocalStorage', Store: 'ecoNovelLayoutReview', Endpoint: '' } });

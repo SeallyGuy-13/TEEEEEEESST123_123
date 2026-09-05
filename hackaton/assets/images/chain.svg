@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600" role="img" aria-label="Цепочка работы с данными">
+	<defs>
+		<linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+			<stop offset="0" stop-color="#1b3b33"/>
+			<stop offset="1" stop-color="#0e1b16"/>
+		</linearGradient>
+	</defs>
+	<rect width="800" height="600" fill="url(#bg)"/>
+	<g font-family="system-ui, sans-serif" font-size="22" fill="#43c59e">
+		<text x="60" y="300">СБОР</text><text x="200" y="300">ОБРАБОТКА</text>
+		<text x="380" y="300">АНАЛИЗ</text><text x="520" y="300">РЕШЕНИЕ</text>
+		<text x="660" y="300">ДЕЙСТВИЕ</text>
+	</g>
+	<text x="24" y="40" font-family="system-ui, sans-serif" font-size="24" fill="#eaf3ee" opacity="0.7">Цепочка работы с данными</text>
+	<text x="24" y="68" font-family="system-ui, sans-serif" font-size="16" fill="#eaf3ee" opacity="0.45">сбор → обработка → анализ → решение → действие</text>
+</svg>

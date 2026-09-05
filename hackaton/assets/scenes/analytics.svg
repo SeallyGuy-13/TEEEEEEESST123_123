@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720" role="img" aria-label="Отдел анализа данных (болванка)">
+	<defs>
+		<linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+			<stop offset="0" stop-color="#241f3a"/>
+			<stop offset="1" stop-color="#0e1b16"/>
+		</linearGradient>
+	</defs>
+	<rect width="1280" height="720" fill="url(#bg)"/>
+	
+			<rect x="120" y="180" width="440" height="300" rx="14" fill="#0e1b16" opacity="0.7" stroke="#f0a44b" stroke-opacity="0.45" stroke-width="3"/>
+			<rect x="720" y="180" width="440" height="300" rx="14" fill="#0e1b16" opacity="0.7" stroke="#5bc0f8" stroke-opacity="0.45" stroke-width="3"/>
+			<polyline points="150,430 240,360 330,395 420,290 530,320" fill="none" stroke="#f0a44b" stroke-width="5" opacity="0.7"/>
+			<g fill="#5bc0f8" opacity="0.5">
+				<rect x="760" y="360" width="50" height="90"/><rect x="830" y="310" width="50" height="140"/>
+				<rect x="900" y="380" width="50" height="70"/><rect x="970" y="270" width="50" height="180"/>
+				<rect x="1040" y="340" width="50" height="110"/>
+			</g>
+	<text x="40" y="60" font-family="system-ui, sans-serif" font-size="26" fill="#eaf3ee" opacity="0.55">Отдел анализа данных</text>
+	<text x="40" y="92" font-family="system-ui, sans-serif" font-size="18" fill="#eaf3ee" opacity="0.35">временный фон — заменяется файлом с тем же именем</text>
+</svg>

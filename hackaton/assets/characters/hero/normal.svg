@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 900" width="400" height="900" role="img" aria-label="Стажёр (болванка)">
+	<defs>
+		<linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+			<stop offset="0" stop-color="#eaf3ee" stop-opacity="0.85"/>
+			<stop offset="1" stop-color="#eaf3ee" stop-opacity="0.35"/>
+		</linearGradient>
+	</defs>
+
+	<!-- Силуэт-болванка. Заменяется финальным спрайтом с тем же именем файла. -->
+	<g fill="url(#g)" stroke="#eaf3ee" stroke-width="4" stroke-opacity="0.6">
+		<circle cx="200" cy="160" r="92"/>
+		<path d="M200 268c-96 0-160 62-172 156l-16 476h376l-16-476c-12-94-76-156-172-156z"/>
+	</g>
+
+	<g fill="#0e1b16" opacity="0.75">
+		<circle cx="172" cy="150" r="10"/>
+		<circle cx="228" cy="150" r="10"/>
+		<rect x="176" y="196" width="48" height="8" rx="4"/>
+	</g>
+
+	<text x="200" y="700" text-anchor="middle" font-family="system-ui, sans-serif"
+		font-size="34" font-weight="600" fill="#0e1b16" opacity="0.8">Стажёр</text>
+	<text x="200" y="742" text-anchor="middle" font-family="system-ui, sans-serif"
+		font-size="22" fill="#0e1b16" opacity="0.55">болванка</text>
+</svg>

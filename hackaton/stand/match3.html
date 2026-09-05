@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+	<title>Очистка территории — стенд</title>
+
+	<!--
+		Стендовый режим (ТЗ, п. 19).
+
+		Отдельная точка входа: игрок не проходит новеллу, а сразу получает
+		короткую инструкцию и играет 1–3 минуты. Прогресс новеллы не читается
+		и не пишется. Сессия сбрасывается после завершения и после бездействия.
+
+		Уровень задаётся параметром ?level=<id> из data/minigames.json.
+	-->
+
+	<style>
+		:root {
+			--bg: #0e1b16;
+			--panel: #1a2f27;
+			--border: rgba(255, 255, 255, 0.14);
+			--text: #eaf3ee;
+			--muted: #9fb3aa;
+			--accent: #43c59e;
+		}
+
+		* { box-sizing: border-box; }
+
+		html, body { margin: 0; height: 100%; }
+
+		body {
+			background: linear-gradient(160deg, #0e1b16, #16302a 60%, #0e1b16);
+			color: var(--text);
+			font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			padding: clamp(1rem, 3vw, 2rem);
+		}
+
+		.screen {
+			width: 100%;
+			max-width: 46rem;
+			text-align: center;
+		}
+
+		.screen[hidden] { display: none; }
+
+		h1 {
+			margin: 0 0 0.75rem;
+			font-size: clamp(1.8rem, 6vw, 3rem);
+			letter-spacing: 0.02em;
+		}
+
+		.lead {
+			margin: 0 auto 1.5rem;
+			max-width: 34rem;
+			color: var(--muted);
+			font-size: clamp(1rem, 2.6vw, 1.25rem);
+			line-height: 1.55;
+		}
+
+		.rules {
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+			gap: 0.75rem;
+			margin: 0 0 1.75rem;
+			padding: 0;
+			list-style: none;
+		}
+
+		.rules li {
+			padding: 0.9rem;
+			background: var(--panel);
+			border: 1px solid var(--border);
+			border-radius: 0.75rem;
+			font-size: 1rem;
+			line-height: 1.4;
+		}
+
+		.rules b { display: block; margin-bottom: 0.25rem; color: var(--accent); }
+
+		.big-btn {
+			min-height: 4rem;
+			padding: 0 2.5rem;
+			background: var(--accent);
+			border: 0;
+			border-radius: 1rem;
+			color: #07130f;
+			font: inherit;
+			font-size: clamp(1.1rem, 3vw, 1.5rem);
+			font-weight: 700;
+			cursor: pointer;
+		}
+
+		.big-btn:active { transform: translateY(2px); }
+
+		.game { width: 100%; max-width: 46rem; }
+
+		.game__frame {
+			display: block;
+			width: 100%;
+			height: min(84vh, 46rem);
+			border: 0;
+			border-radius: 1rem;
+			background: var(--bg);
+		}
+
+		.result__score {
+			margin: 0 0 1.5rem;
+			font-size: clamp(1.1rem, 3vw, 1.4rem);
+			color: var(--muted);
+		}
+
+		.result__score b { color: var(--text); }
+
+		.timer {
+			margin-top: 1rem;
+			color: var(--muted);
+			font-size: 0.95rem;
+		}
+	</style>
+</head>
+<body>
+
+	<section class="screen" id="intro">
+		<h1>Очистка территории</h1>
+		<p class="lead">Мини-игра из образовательной новеллы о технологиях экологического мониторинга.
+			Соберите отходы по типам — как это делают на настоящей уборке.</p>
+
+		<ul class="rules">
+			<li><b>Меняйте местами</b> два соседних предмета</li>
+			<li><b>Собирайте три и больше</b> одинаковых подряд</li>
+			<li><b>Выполните цели</b> за отведённые ходы</li>
+		</ul>
+
+		<button class="big-btn" type="button" id="start">Играть</button>
+	</section>
+
+	<section class="game screen" id="game" hidden>
+		<iframe class="game__frame" id="frame" title="Три в ряд" src="about:blank"></iframe>
+	</section>
+
+	<section class="screen" id="result" hidden>
+		<h1 id="result-title">Территория очищена</h1>
+		<p class="result__score" id="result-score"></p>
+		<p class="lead">Так выглядит финальный шаг работы: до него были данные с дрона,
+			снимки и анализ. Уборка — не первое действие, а последнее.</p>
+		<button class="big-btn" type="button" id="again">Играть ещё раз</button>
+		<p class="timer" id="timer"></p>
+	</section>
+
+	<script>
+		'use strict';
+
+		const params = new URLSearchParams(window.location.search);
+		const LEVEL_ID = params.get('level') || 'stand_cleanup_01';
+		const IDLE_RESET_MS = 60000;
+
+		const screens = {
+			intro: document.getElementById('intro'),
+			game: document.getElementById('game'),
+			result: document.getElementById('result')
+		};
+
+		const frame = document.getElementById('frame');
+		let levelConfig = null;
+		let idleTimer = null;
+		let countdownTimer = null;
+
+		function show (name) {
+			Object.entries(screens).forEach(([key, node]) => { node.hidden = key !== name; });
+		}
+
+		function loadConfig () {
+			return fetch('../data/minigames.json')
+				.then((response) => response.json())
+				.then((data) => {
+					levelConfig = data.match3[LEVEL_ID] || data.match3.cleanup_level_01;
+				})
+				.catch(() => {
+					levelConfig = {
+						id: 'stand_fallback',
+						mode: 'moves',
+						moveLimit: 20,
+						goals: [{ type: 'collect', item: 'plastic', count: 10 }]
+					};
+				});
+		}
+
+		function startGame () {
+			show('game');
+			// Перезагружаем фрейм — так сессия всегда начинается с чистого поля.
+			frame.src = '../minigames/match3/standalone.html';
+		}
+
+		function showResult (status, payload) {
+			const ITEM_NAMES = { plastic: 'пластик', oil: 'нефть', metal: 'металл', bio: 'органика' };
+
+			const collected = payload.collected || {};
+			const parts = Object.entries(collected)
+				.filter(([, count]) => count > 0)
+				.map(([item, count]) => `${ITEM_NAMES[item] || item}: ${count}`);
+
+			document.getElementById('result-title').textContent =
+				status === 'completed' ? 'Территория очищена' : 'Ходы закончились';
+
+			document.getElementById('result-score').innerHTML =
+				`Очки: <b>${payload.score || 0}</b>${parts.length ? ' · Собрано — ' + parts.join(', ') : ''}`;
+
+			show('result');
+			startIdleReset();
+		}
+
+		function startIdleReset () {
+			clearTimeout(idleTimer);
+			clearInterval(countdownTimer);
+
+			let left = Math.round(IDLE_RESET_MS / 1000);
+			const timerNode = document.getElementById('timer');
+
+			const tick = () => {
+				timerNode.textContent = `Экран сбросится через ${left} с`;
+				left -= 1;
+			};
+
+			tick();
+			countdownTimer = setInterval(tick, 1000);
+
+			idleTimer = setTimeout(() => {
+				clearInterval(countdownTimer);
+				timerNode.textContent = '';
+				show('intro');
+			}, IDLE_RESET_MS);
+		}
+
+		window.addEventListener('message', (event) => {
+			if (event.source !== frame.contentWindow) {
+				return;
+			}
+
+			const message = event.data || {};
+
+			if (message.type === 'MATCH3_READY') {
+				frame.contentWindow.postMessage({
+					type: 'MATCH3_START',
+					payload: { levelId: LEVEL_ID, config: levelConfig }
+				}, '*');
+			} else if (message.type === 'MATCH3_COMPLETE') {
+				showResult('completed', message.payload || {});
+			} else if (message.type === 'MATCH3_FAIL') {
+				showResult('failed', message.payload || {});
+			}
+		});
+
+		document.getElementById('start').addEventListener('click', startGame);
+		document.getElementById('again').addEventListener('click', () => {
+			clearTimeout(idleTimer);
+			clearInterval(countdownTimer);
+			startGame();
+		});
+
+		loadConfig();
+	</script>
+</body>
+</html>

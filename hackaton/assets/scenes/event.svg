@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720" role="img" aria-label="Реальная активность: уборка (болванка)">
+	<defs>
+		<linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+			<stop offset="0" stop-color="#1b3b33"/>
+			<stop offset="1" stop-color="#2a5c3f"/>
+		</linearGradient>
+	</defs>
+	<rect width="1280" height="720" fill="url(#bg)"/>
+	
+			<g fill="#eaf3ee" opacity="0.35">
+				<circle cx="360" cy="430" r="34"/><rect x="330" y="470" width="60" height="130" rx="24"/>
+				<circle cx="500" cy="415" r="34"/><rect x="470" y="455" width="60" height="145" rx="24"/>
+				<circle cx="640" cy="435" r="34"/><rect x="610" y="475" width="60" height="125" rx="24"/>
+				<circle cx="780" cy="420" r="34"/><rect x="750" y="460" width="60" height="140" rx="24"/>
+			</g>
+			<rect x="900" y="470" width="120" height="130" rx="10" fill="#43c59e" opacity="0.45"/>
+	<text x="40" y="60" font-family="system-ui, sans-serif" font-size="26" fill="#eaf3ee" opacity="0.55">Реальная активность: уборка</text>
+	<text x="40" y="92" font-family="system-ui, sans-serif" font-size="18" fill="#eaf3ee" opacity="0.35">временный фон — заменяется файлом с тем же именем</text>
+</svg>

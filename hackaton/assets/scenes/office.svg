@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720" role="img" aria-label="Офис центра мониторинга (болванка)">
+	<defs>
+		<linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+			<stop offset="0" stop-color="#1b3b33"/>
+			<stop offset="1" stop-color="#0e1b16"/>
+		</linearGradient>
+	</defs>
+	<rect width="1280" height="720" fill="url(#bg)"/>
+	
+			<rect x="80" y="420" width="1120" height="24" fill="#43c59e" opacity="0.25"/>
+			<rect x="140" y="240" width="300" height="180" rx="12" fill="#43c59e" opacity="0.18"/>
+			<rect x="480" y="200" width="300" height="220" rx="12" fill="#5bc0f8" opacity="0.16"/>
+			<rect x="820" y="250" width="260" height="170" rx="12" fill="#f0a44b" opacity="0.14"/>
+	<text x="40" y="60" font-family="system-ui, sans-serif" font-size="26" fill="#eaf3ee" opacity="0.55">Офис центра мониторинга</text>
+	<text x="40" y="92" font-family="system-ui, sans-serif" font-size="18" fill="#eaf3ee" opacity="0.35">временный фон — заменяется файлом с тем же именем</text>
+</svg>

@@ -1,0 +1,698 @@
+/**
+ * Интерфейсы игрового слоя: HUD, оверлеи, трекер задач, проверка знаний,
+ * карточки фактов, личное дело, всплывающие уведомления.
+ *
+ * Всё рассчитано на телефон, планшет и ПК: сетки на auto-fit, размеры на clamp,
+ * зоны нажатия не меньше 44 px (ТЗ, п. 15).
+ */
+
+/* --- Слой ---------------------------------------------------------------- */
+
+#game-layer {
+	position: fixed;
+	inset: 0;
+	/* Выше быстрого меню и текстового окна Monogatari. */
+	z-index: 1000;
+	pointer-events: none;
+	text-align: left;
+}
+
+#game-layer > * {
+	pointer-events: auto;
+}
+
+/* Пока открыт оверлей, HUD не мешает: его данные продублированы в трекере. */
+#game-layer.has-overlay .hud,
+#game-layer.has-overlay .toasts {
+	display: none;
+}
+
+/* Под оверлеем прячем управление движка: быстрое меню и варианты ответа. */
+body.has-overlay quick-menu,
+body.has-overlay choice-container {
+	display: none !important;
+}
+
+/* --- Кнопки -------------------------------------------------------------- */
+
+.btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.4rem;
+	min-height: 2.75rem;
+	padding: 0.6rem 1.1rem;
+	border: 1px solid transparent;
+	border-radius: 0.6rem;
+	background: var(--panel);
+	color: var(--text);
+	font: inherit;
+	font-size: 0.95rem;
+	line-height: 1.3;
+	cursor: pointer;
+	transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+	-webkit-tap-highlight-color: transparent;
+}
+
+/* Класс задаёт display, поэтому атрибут hidden нужно вернуть в силу явно. */
+.btn[hidden] { display: none; }
+
+/* Hover только там, где есть указатель: на тач-экранах он «залипает». */
+@media (hover: hover) {
+	.btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.12); }
+	.btn--primary:hover:not(:disabled) { background: #55d6ae; }
+	.btn--accent:hover:not(:disabled) { background: rgba(67, 197, 158, 0.14); }
+	.task-card:hover { border-color: rgba(67, 197, 158, 0.5); }
+	.hud__profile:hover { background: rgba(255, 255, 255, 0.08); }
+}
+
+.btn:active:not(:disabled) { transform: translateY(1px); }
+
+.btn:disabled {
+	opacity: 0.45;
+	cursor: not-allowed;
+}
+
+.btn--primary {
+	background: var(--accent);
+	color: #07130f;
+	font-weight: 600;
+}
+
+
+.btn--accent {
+	background: transparent;
+	border-color: var(--accent);
+	color: var(--accent);
+	font-weight: 600;
+}
+
+
+.btn--ghost {
+	background: transparent;
+	border-color: var(--border);
+	color: var(--muted);
+}
+
+.btn--option {
+	width: 100%;
+	justify-content: flex-start;
+	text-align: left;
+	border-color: var(--border);
+	white-space: normal;
+}
+
+.btn--option.is-correct {
+	border-color: var(--accent);
+	background: rgba(67, 197, 158, 0.18);
+}
+
+.btn--option.is-wrong {
+	border-color: var(--bad);
+	background: rgba(229, 105, 95, 0.16);
+}
+
+/* --- HUD ----------------------------------------------------------------- */
+
+.hud {
+	position: absolute;
+	top: max(0.6rem, env(safe-area-inset-top));
+	right: max(0.6rem, env(safe-area-inset-right));
+	z-index: 21;
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	padding: 0.45rem 0.7rem;
+	background: rgba(14, 27, 22, 0.82);
+	border: 1px solid var(--border);
+	border-radius: 999px;
+	backdrop-filter: blur(6px);
+	font-size: 0.8rem;
+}
+
+.hud[hidden] { display: none; }
+
+.hud__profile {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 0.1rem;
+	min-height: 2.25rem;
+	padding: 0.2rem 0.5rem;
+	border: 0;
+	border-radius: 0.5rem;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	cursor: pointer;
+}
+
+
+.hud__level { font-weight: 600; }
+.hud__xp { color: var(--muted); font-size: 0.72rem; }
+
+.hud__reputation {
+	display: flex;
+	align-items: center;
+	gap: 0.45rem;
+}
+
+.hud__label {
+	color: var(--muted);
+	white-space: nowrap;
+}
+
+.hud__bar {
+	width: 6rem;
+	height: 0.45rem;
+	overflow: hidden;
+	background: rgba(255, 255, 255, 0.14);
+	border-radius: 999px;
+}
+
+.hud__bar-fill {
+	height: 100%;
+	background: var(--accent);
+	border-radius: inherit;
+	transition: width 0.35s ease, background 0.35s ease;
+}
+
+.hud__bar-fill[data-tone="warn"] { background: var(--warn); }
+.hud__bar-fill[data-tone="bad"] { background: var(--bad); }
+
+.hud__value {
+	min-width: 1.75rem;
+	font-variant-numeric: tabular-nums;
+	text-align: right;
+}
+
+@media (max-width: 560px) {
+	.hud__label { display: none; }
+	.hud__bar { width: 4rem; }
+}
+
+/* --- Всплывающие уведомления --------------------------------------------- */
+
+.toasts {
+	position: absolute;
+	top: max(4rem, calc(env(safe-area-inset-top) + 3.5rem));
+	right: max(0.6rem, env(safe-area-inset-right));
+	z-index: 22;
+	display: flex;
+	flex-direction: column;
+	gap: 0.4rem;
+	pointer-events: none;
+}
+
+.toast {
+	padding: 0.5rem 0.85rem;
+	background: rgba(14, 27, 22, 0.94);
+	border: 1px solid var(--border);
+	border-left-width: 3px;
+	border-radius: 0.5rem;
+	font-size: 0.85rem;
+	opacity: 0;
+	transform: translateX(1rem);
+	transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.toast--visible {
+	opacity: 1;
+	transform: none;
+}
+
+.toast--good { border-left-color: var(--accent); }
+.toast--bad { border-left-color: var(--bad); }
+.toast--info { border-left-color: var(--warn); }
+
+/* --- Оверлеи ------------------------------------------------------------- */
+
+.overlay {
+	position: absolute;
+	inset: 0;
+	z-index: 25;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: clamp(0.5rem, 2vw, 1.5rem);
+	/* Без backdrop-filter: он создаёт отдельный слой композитинга, и Chrome
+	   иногда не отрисовывает текст внутри до первой перерисовки — надписи на
+	   кнопках проявлялись только при наведении. Плотный фон даёт тот же
+	   эффект отделения от сцены. */
+	background: rgba(6, 12, 10, 0.88);
+	overflow-y: auto;
+	/* Появление анимацией, а не переключением класса: если вкладка была
+	   свёрнута, анимация не «залипает» на промежуточной прозрачности. */
+	animation: overlay-in 0.18s ease both;
+}
+
+.overlay--closing {
+	opacity: 0;
+	transition: opacity 0.18s ease;
+}
+
+@keyframes overlay-in {
+	from { opacity: 0; }
+	to { opacity: 1; }
+}
+
+.overlay__panel {
+	width: 100%;
+	max-width: 46rem;
+	max-height: 100%;
+	overflow-y: auto;
+	background: var(--panel-solid);
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	box-shadow: var(--shadow);
+	animation: panel-in 0.2s ease both;
+	-webkit-overflow-scrolling: touch;
+	/* Собственный контекст наложения: содержимое панели рисуется предсказуемо
+	   поверх сцены с анимациями и canvas мини-игр. */
+	isolation: isolate;
+}
+
+@keyframes panel-in {
+	from { transform: translateY(0.75rem); }
+	to { transform: none; }
+}
+
+.overlay--minigame .overlay__panel { max-width: 52rem; }
+.overlay--tracker .overlay__panel { max-width: 44rem; }
+.overlay--fact .overlay__panel { max-width: 26rem; }
+.overlay--quiz .overlay__panel { max-width: 34rem; }
+
+/* --- Трекер задач -------------------------------------------------------- */
+
+.tracker {
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+	padding: clamp(1rem, 3vw, 1.5rem);
+}
+
+.tracker__header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 1rem;
+	flex-wrap: wrap;
+}
+
+.tracker__title {
+	margin: 0;
+	font-size: clamp(1.2rem, 3.5vw, 1.6rem);
+}
+
+.tracker__subtitle {
+	margin: 0.25rem 0 0;
+	color: var(--muted);
+	font-size: 0.85rem;
+}
+
+.tracker__hint {
+	margin: 0;
+	padding: 0.6rem 0.8rem;
+	background: rgba(67, 197, 158, 0.1);
+	border-left: 3px solid var(--accent);
+	border-radius: 0.4rem;
+	font-size: 0.9rem;
+}
+
+.tracker__list {
+	display: flex;
+	flex-direction: column;
+	gap: 0.6rem;
+}
+
+.tracker__footer {
+	color: var(--muted);
+	font-size: 0.78rem;
+}
+
+.task-card {
+	display: grid;
+	grid-template-columns: auto 1fr auto;
+	gap: 0.9rem;
+	align-items: center;
+	padding: 0.85rem;
+	background: var(--panel);
+	border: 1px solid var(--border);
+	border-radius: 0.7rem;
+	transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+
+.task-card--completed { opacity: 0.75; }
+.task-card--completed:hover { opacity: 1; }
+
+.task-card--locked {
+	opacity: 0.5;
+	border-style: dashed;
+}
+
+.task-card--external {
+	border-color: var(--accent);
+	background: rgba(67, 197, 158, 0.12);
+}
+
+.task-card__icon {
+	width: 2.75rem;
+	height: 2.75rem;
+	display: grid;
+	place-items: center;
+	background: rgba(255, 255, 255, 0.07);
+	border-radius: 0.6rem;
+	font-size: 1.5rem;
+}
+
+.task-card__title {
+	margin: 0;
+	font-size: 1rem;
+	line-height: 1.3;
+}
+
+.task-card__description {
+	margin: 0.2rem 0 0.35rem;
+	color: var(--muted);
+	font-size: 0.85rem;
+}
+
+.task-card__status {
+	display: inline-block;
+	padding: 0.1rem 0.5rem;
+	background: rgba(255, 255, 255, 0.08);
+	border-radius: 999px;
+	font-size: 0.72rem;
+	color: var(--muted);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.task-card--completed .task-card__status { color: var(--accent); }
+
+.task-card__actions {
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	gap: 0.35rem;
+}
+
+.task-card__mark {
+	text-align: center;
+	font-size: 1.1rem;
+	color: var(--accent);
+	min-height: 1.2rem;
+}
+
+/* У доступной задачи отметки нет — не занимаем ею строку. */
+.task-card__mark:empty { display: none; }
+
+.task-card__hint {
+	color: var(--muted);
+	font-size: 0.78rem;
+	text-align: center;
+}
+
+.task-card__repeat { font-size: 0.78rem; min-height: 2.25rem; }
+
+@media (max-width: 560px) {
+	.task-card {
+		grid-template-columns: auto 1fr;
+	}
+
+	.task-card__actions {
+		grid-column: 1 / -1;
+		flex-direction: row;
+		flex-wrap: wrap;
+	}
+
+	.task-card__actions .btn { flex: 1 1 8rem; }
+	.task-card__mark { order: -1; width: 100%; text-align: left; }
+}
+
+/* --- Проверка знаний ----------------------------------------------------- */
+
+.quiz {
+	display: flex;
+	flex-direction: column;
+	gap: 0.85rem;
+	padding: clamp(1rem, 3vw, 1.5rem);
+}
+
+.quiz__speaker {
+	align-self: flex-start;
+	padding: 0.2rem 0.65rem;
+	background: rgba(67, 197, 158, 0.18);
+	border-radius: 999px;
+	color: var(--accent);
+	font-size: 0.8rem;
+	font-weight: 600;
+}
+
+.quiz__situation {
+	margin: 0;
+	color: var(--muted);
+	font-size: 0.9rem;
+	line-height: 1.5;
+}
+
+.quiz__question {
+	margin: 0;
+	font-size: clamp(1.05rem, 3vw, 1.25rem);
+	line-height: 1.35;
+}
+
+.quiz__answers {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+.quiz__feedback {
+	padding: 0.7rem 0.85rem;
+	border-left: 3px solid var(--border);
+	border-radius: 0.4rem;
+	background: rgba(255, 255, 255, 0.05);
+	font-size: 0.9rem;
+}
+
+.quiz__feedback--good { border-left-color: var(--accent); }
+.quiz__feedback--bad { border-left-color: var(--bad); }
+
+.quiz__feedback p { margin: 0 0 0.4rem; }
+.quiz__feedback p:last-child { margin-bottom: 0; }
+
+.quiz__explanation { color: var(--muted); }
+.quiz__retry { color: var(--accent); font-weight: 600; }
+
+/* --- Карточка факта ------------------------------------------------------ */
+
+.fact-card {
+	display: flex;
+	flex-direction: column;
+	gap: 0.6rem;
+	padding: clamp(1rem, 3vw, 1.4rem);
+	text-align: center;
+}
+
+.fact-card__badge {
+	align-self: center;
+	padding: 0.15rem 0.6rem;
+	background: rgba(240, 164, 75, 0.18);
+	border-radius: 999px;
+	color: var(--warn);
+	font-size: 0.75rem;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+}
+
+.fact-card__title { margin: 0; font-size: 1.2rem; }
+
+.fact-card__text {
+	margin: 0;
+	color: var(--muted);
+	line-height: 1.55;
+}
+
+.fact-card .btn { align-self: center; }
+
+/* --- Личное дело --------------------------------------------------------- */
+
+.collection {
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+	padding: clamp(1rem, 3vw, 1.5rem);
+}
+
+.collection__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+
+.collection__header h3 { margin: 0; }
+
+.collection__section h4 {
+	margin: 0 0 0.4rem;
+	color: var(--muted);
+	font-size: 0.85rem;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+}
+
+.collection__level { margin: 0; font-size: 1.05rem; font-weight: 600; }
+
+.collection__empty { margin: 0; color: var(--muted); font-size: 0.88rem; }
+
+.collection__badges,
+.collection__facts {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+.collection__badges li {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+	padding: 0.5rem 0.7rem;
+	background: var(--panel);
+	border-radius: 0.5rem;
+}
+
+.collection__icon-img {
+	width: 1.8rem;
+	height: 1.8rem;
+	object-fit: contain;
+	border-radius: 0.35rem;
+	display: block;
+}
+
+.collection__facts li {
+	display: flex;
+	flex-direction: column;
+	gap: 0.2rem;
+	padding: 0.6rem 0.7rem;
+	background: var(--panel);
+	border-radius: 0.5rem;
+}
+
+.collection__facts span { color: var(--muted); font-size: 0.85rem; line-height: 1.45; }
+
+/* --- Простое окно -------------------------------------------------------- */
+
+.notice {
+	display: flex;
+	flex-direction: column;
+	gap: 0.8rem;
+	padding: clamp(1rem, 3vw, 1.5rem);
+	text-align: center;
+}
+
+.notice__title { margin: 0; }
+.notice__text { color: var(--muted); line-height: 1.5; }
+.notice .btn { align-self: center; }
+
+/* Панель между персонажами: лица остаются открыты при ростовых спрайтах. */
+.hud {
+	left: 50%;
+	right: auto;
+	transform: translateX(-50%);
+	width: max-content;
+	max-width: 90vw;
+	box-sizing: border-box;
+	border-radius: 16px;
+}
+.hud__profile { width: auto; margin: 0; }
+@media (max-width: 640px) {
+	.hud { gap: .35rem; padding: .3rem .5rem; }
+	.hud__label { display: none; }
+}
+
+/* --- Общая адаптивность игрового слоя ---------------------------------- */
+.overlay {
+	box-sizing: border-box;
+	height: 100%;
+	height: 100dvh;
+	min-height: 0;
+}
+
+.overlay__panel {
+	box-sizing: border-box;
+	max-height: calc(100dvh - clamp(1rem, 4vw, 3rem));
+	overscroll-behavior: contain;
+}
+
+@media (max-width: 640px) {
+	.hud {
+		top: max(.35rem, env(safe-area-inset-top));
+		max-width: calc(100vw - 1rem);
+		font-size: .72rem;
+	}
+
+	.hud__profile { min-height: 1.8rem; padding: .1rem .3rem; }
+	.hud__bar { width: clamp(3rem, 18vw, 5rem); }
+	.hud__reputation { gap: .3rem; }
+
+	.toasts {
+		top: max(3.5rem, calc(env(safe-area-inset-top) + 3.5rem));
+		left: .5rem;
+		right: .5rem;
+		width: auto;
+	}
+
+	.overlay {
+		align-items: flex-start;
+		padding: max(.5rem, env(safe-area-inset-top)) max(.5rem, env(safe-area-inset-right))
+			max(.5rem, env(safe-area-inset-bottom)) max(.5rem, env(safe-area-inset-left));
+	}
+
+	.overlay__panel {
+		max-height: calc(100dvh - max(1rem, env(safe-area-inset-top) + env(safe-area-inset-bottom)));
+		border-radius: .75rem;
+	}
+
+	.tracker,
+	.quiz,
+	.fact-card,
+	.collection,
+	.notice {
+		padding: .85rem;
+		gap: .7rem;
+	}
+
+	.tracker__header,
+	.tracker__footer,
+	.collection__header {
+		align-items: flex-start;
+		gap: .5rem;
+	}
+
+	.task-card {
+		grid-template-columns: 2.75rem minmax(0, 1fr);
+		gap: .65rem;
+		padding: .7rem;
+	}
+
+	.task-card__actions {
+		grid-column: 1 / -1;
+		width: 100%;
+	}
+
+	.task-card__actions .btn { flex: 1 1 auto; }
+	.quiz__speaker { padding: .65rem; }
+	.quiz__situation { padding: .7rem; }
+	.collection__badges { grid-template-columns: 1fr; }
+}
+
+@media (max-height: 520px) and (orientation: landscape) {
+	.overlay { padding: .25rem; align-items: flex-start; }
+	.overlay__panel { max-height: calc(100dvh - .5rem); }
+	.tracker, .quiz, .fact-card, .collection, .notice { padding: .7rem; gap: .55rem; }
+	.hud { top: .25rem; }
+}
